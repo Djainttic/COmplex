@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import Button from '../ui/Button';
+import ImageUpload from '../ui/ImageUpload';
 
 const GeneralSettingsForm: React.FC = () => {
     const { settings, updateSettings, hasPermission } = useAuth();
@@ -48,16 +49,10 @@ const GeneralSettingsForm: React.FC = () => {
                     </div>
 
                     <div className="sm:col-span-4">
-                        <label htmlFor="logoUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300">URL du logo</label>
-                        <input
-                            type="text"
-                            name="logoUrl"
-                            id="logoUrl"
-                            placeholder="https://example.com/logo.png"
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Logo</label>
+                        <ImageUpload
                             value={formData.logoUrl}
-                            onChange={handleChange}
-                            disabled={!canWrite}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 sm:text-sm"
+                            onChange={(url) => setFormData(prev => ({...prev, logoUrl: url}))}
                         />
                     </div>
 

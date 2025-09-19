@@ -4,6 +4,7 @@ import { Bungalow, BungalowStatus, BungalowType } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
+import ImageUpload from '../ui/ImageUpload';
 
 interface BungalowFormModalProps {
     isOpen: boolean;
@@ -25,7 +26,7 @@ const BungalowFormModal: React.FC<BungalowFormModalProps> = ({ isOpen, onClose, 
             capacity: defaultType?.capacity || 2,
             pricePerNight: defaultType?.defaultPrice || 10000,
             amenities: [] as string[], // Default to empty array (no amenities selected)
-            imageUrl: `https://picsum.photos/seed/${Date.now()}/400/300`,
+            imageUrl: '',
             description: '',
         };
     };
@@ -171,8 +172,11 @@ const BungalowFormModal: React.FC<BungalowFormModalProps> = ({ isOpen, onClose, 
                 </div>
 
                  <div>
-                    <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300">URL de l'image</label>
-                    <input type="text" name="imageUrl" id="imageUrl" value={formData.imageUrl} onChange={handleChange} className={`mt-1 ${commonInputStyle}`} />
+                    <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Image</label>
+                    <ImageUpload
+                        value={formData.imageUrl}
+                        onChange={(url) => setFormData(prev => ({ ...prev, imageUrl: url }))}
+                    />
                 </div>
                  <div>
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>

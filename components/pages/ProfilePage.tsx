@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import Button from '../ui/Button';
+import AvatarUploadModal from '../users/AvatarUploadModal';
 
 const ProfilePage: React.FC = () => {
     const { currentUser, updateUser } = useAuth();
@@ -17,6 +18,8 @@ const ProfilePage: React.FC = () => {
         newPassword: '',
         confirmPassword: '',
     });
+
+    const [isAvatarModalOpen, setAvatarModalOpen] = useState(false);
 
     useEffect(() => {
         if (currentUser) {
@@ -60,6 +63,11 @@ const ProfilePage: React.FC = () => {
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     };
 
+    const handleAvatarSave = (newAvatarUrl: string) => {
+        updateUser({ ...currentUser, avatarUrl: newAvatarUrl });
+        setAvatarModalOpen(false);
+    };
+
     const inputStyle = "px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 sm:text-sm";
 
     return (
@@ -76,7 +84,7 @@ const ProfilePage: React.FC = () => {
                         <img className="h-24 w-24 rounded-full object-cover mx-auto" src={currentUser.avatarUrl} alt="Your avatar" />
                         <h2 className="text-xl font-semibold mt-4">{currentUser.name}</h2>
                         <p className="text-gray-500 dark:text-gray-400">{currentUser.role}</p>
-                         <Button variant="secondary" size="sm" className="mt-4">Changer la photo</Button>
+                         <Button variant="secondary" size="sm" className="mt-4" onClick={() => setAvatarModalOpen(true)}>Changer la photo</Button>
                     </div>
                 </div>
 
@@ -127,6 +135,13 @@ const ProfilePage: React.FC = () => {
                     </form>
                 </div>
             </div>
+
+            <AvatarUploadModal
+                isOpen={isAvatarModalOpen}
+                onClose={() => setAvatarModalOpen(false)}
+                onSave={handleAvatarSave}
+                currentAvatarUrl={currentUser.avatarUrl}
+            />
         </div>
     );
 };
