@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { NotificationProvider } from './hooks/useNotifications';
 import { DataProvider } from './hooks/useData';
@@ -16,19 +16,7 @@ import BillingPage from './components/pages/BillingPage';
 import ClientsPage from './components/pages/ClientsPage';
 import MaintenancePage from './components/pages/MaintenancePage';
 import ReportsPage from './components/pages/ReportsPage';
-
-const navIcons: { [key: string]: any } = {
-    'Tableau de bord': 'home',
-    'Bungalows': 'home',
-    'Réservations': 'calendar',
-    'Clients': 'users',
-    'Facturation': 'currency',
-    'Maintenance': 'wrench',
-    'Rapports': 'chart',
-    'Utilisateurs': 'users',
-    'Paramètres': 'cog',
-    'Mon Profil': 'users',
-};
+import LoginPage from './components/pages/LoginPage';
 
 const ProtectedRoute: React.FC<{ permission?: Permission | Permission[], children: JSX.Element }> = ({ permission, children }) => {
     const { hasPermission } = useAuth();
@@ -38,64 +26,27 @@ const ProtectedRoute: React.FC<{ permission?: Permission | Permission[], childre
     return children;
 };
 
-const AppLayout = () => {
+const ProtectedLayout = () => {
+    const { currentUser } = useAuth();
     const [isSidebarOpen, setSidebarOpen] = useState(false);
+
+    if (!currentUser) {
+        return <Navigate to="/login" replace />;
+    }
+
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans">
             <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} />
                 <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
-                    <Routes>
-                        <Route path="/" element={<DashboardPage />} />
-                        <Route path="/bungalows" element={
-                            <ProtectedRoute permission="bungalows:read">
-                                <BungalowsPage />
-                            </ProtectedRoute>
-                        } />
-                        <Route path="/reservations" element={
-                            <ProtectedRoute permission="reservations:read">
-                                <ReservationsPage />
-                            </ProtectedRoute>
-                        } />
-                        <Route path="/clients" element={
-                            <ProtectedRoute permission="clients:read">
-                                <ClientsPage />
-                             </ProtectedRoute>
-                        } />
-                        <Route path="/facturation" element={
-                            <ProtectedRoute permission="billing:read">
-                                <BillingPage />
-                            </ProtectedRoute>
-                        } />
-                        <Route path="/maintenance" element={
-                            <ProtectedRoute permission="maintenance:read">
-                                <MaintenancePage />
-                            </ProtectedRoute>
-                        } />
-                        <Route path="/rapports" element={
-                             <ProtectedRoute permission="reports:read">
-                                <ReportsPage />
-                             </ProtectedRoute>
-                        } />
-                        <Route path="/utilisateurs" element={
-                            <ProtectedRoute permission="users:read">
-                                <UsersPage />
-                            </ProtectedRoute>
-                        } />
-                        <Route path="/parametres" element={
-                            <ProtectedRoute permission="settings:read">
-                                <SettingsPage />
-                            </ProtectedRoute>
-                        } />
-                        <Route path="/profil" element={<ProfilePage />} />
-                        <Route path="*" element={<Navigate to="/" />} />
-                    </Routes>
+                    <Outlet /> {/* Child routes will be rendered here */}
                 </main>
             </div>
         </div>
     );
-}
+};
+
 
 const App: React.FC = () => {
     return (
@@ -103,7 +54,54 @@ const App: React.FC = () => {
             <NotificationProvider>
                 <DataProvider>
                     <Router>
-                        <AppLayout />
+                        <Routes>
+                            <Route path="/login" element={<LoginPage />} />
+                            <Route element={<ProtectedLayout />}>
+                                <Route path="/" element={<DashboardPage />} />
+                                <Route path="/bungalows" element={
+                                    <ProtectedRoute permission="bungalows:read">
+                                        <BungalowsPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="/reservations" element={
+                                    <ProtectedRoute permission="reservations:read">
+                                        <ReservationsPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="/clients" element={
+                                    <ProtectedRoute permission="clients:read">
+                                        <ClientsPage />
+                                     </ProtectedRoute>
+                                } />
+                                <Route path="/facturation" element={
+                                    <ProtectedRoute permission="billing:read">
+                                        <BillingPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="/maintenance" element={
+                                    <ProtectedRoute permission="maintenance:read">
+                                        <MaintenancePage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="/rapports" element={
+                                     <ProtectedRoute permission="reports:read">
+                                        <ReportsPage />
+                                     </ProtectedRoute>
+                                } />
+                                <Route path="/utilisateurs" element={
+                                    <ProtectedRoute permission="users:read">
+                                        <UsersPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="/parametres" element={
+                                    <ProtectedRoute permission="settings:read">
+                                        <SettingsPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="/profil" element={<ProfilePage />} />
+                                 <Route path="*" element={<Navigate to="/" />} />
+                            </Route>
+                        </Routes>
                     </Router>
                 </DataProvider>
             </NotificationProvider>

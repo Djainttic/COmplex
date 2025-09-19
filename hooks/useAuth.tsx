@@ -52,22 +52,19 @@ const getPermissionsForRole = (role: UserRole): Permission[] => {
         .map(([permission]) => permission as Permission);
 };
 
-// MOCK DATA
-const MOCK_CURRENT_USER: User = {
-    id: 'user-admin',
-    name: 'Admin Admin',
-    email: 'admin@bungalow.dz',
-    phone: '0555123456',
-    avatarUrl: 'https://i.pravatar.cc/150?u=admin',
-    role: UserRole.Admin,
-    status: UserStatus.Active,
-    permissions: getPermissionsForRole(UserRole.Admin),
-    lastLogin: new Date().toISOString(),
-    isOnline: true,
-};
-
 const MOCK_ALL_USERS: User[] = [
-    MOCK_CURRENT_USER,
+    {
+        id: 'user-admin',
+        name: 'Admin Admin',
+        email: 'admin@bungalow.dz',
+        phone: '0555123456',
+        avatarUrl: 'https://i.pravatar.cc/150?u=admin',
+        role: UserRole.Admin,
+        status: UserStatus.Active,
+        permissions: getPermissionsForRole(UserRole.Admin),
+        lastLogin: new Date().toISOString(),
+        isOnline: false,
+    },
     {
         id: 'user-manager',
         name: 'Marie Manager',
@@ -179,14 +176,36 @@ interface AuthContextType {
     hasPermission: (permission: Permission | Permission[]) => boolean;
     updateUser: (user: User) => void;
     updateSettings: (newSettings: Settings) => void;
+    login: (email: string, password?: string) => Promise<boolean>;
+    logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [currentUser, setCurrentUser] = useState<User | null>(MOCK_CURRENT_USER);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [allUsers, setAllUsers] = useState<User[]>(MOCK_ALL_USERS);
     const [settings, setSettings] = useState<Settings>(MOCK_SETTINGS);
+
+    const login = async (email: string, password?: string): Promise<boolean> => {
+        // Password is not checked in this mock implementation
+        const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+        if (user) {
+            const loggedInUser = { ...user, isOnline: true, lastLogin: new Date().toISOString() };
+            setCurrentUser(loggedInUser);
+            setAllUsers(prev => prev.map(u => u.id === user.id ? loggedInUser : u));
+            return true;
+        }
+        return false;
+    };
+
+    const logout = () => {
+        if (currentUser) {
+            const loggedOutUser = { ...currentUser, isOnline: false };
+            setAllUsers(prev => prev.map(u => u.id === currentUser.id ? loggedOutUser : u));
+            setCurrentUser(null);
+        }
+    };
 
     const hasPermission = (permission: Permission | Permission[]): boolean => {
         if (!currentUser) return false;
@@ -243,7 +262,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         settings,
         hasPermission,
         updateUser,
-        updateSettings
+        updateSettings,
+        login,
+        logout,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

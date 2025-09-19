@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
 import NotificationPanel from '../notifications/NotificationPanel';
@@ -8,15 +9,21 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, logout } = useAuth();
     const { unreadCount } = useNotifications();
     const [isNotificationPanelOpen, setNotificationPanelOpen] = useState(false);
+    const [isUserDropdownOpen, setUserDropdownOpen] = useState(false);
     const notificationRef = useRef<HTMLDivElement>(null);
+    const userDropdownRef = useRef<HTMLDivElement>(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
                 setNotificationPanelOpen(false);
+            }
+            if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+                setUserDropdownOpen(false);
             }
         };
 
@@ -25,6 +32,11 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     return (
         <header className="flex items-center justify-between px-6 py-3 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
@@ -56,8 +68,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
                     <NotificationPanel isOpen={isNotificationPanelOpen} onClose={() => setNotificationPanelOpen(false)} />
                 </div>
                 {/* User Dropdown */}
-                <div className="relative">
-                    <button className="flex items-center space-x-2 focus:outline-none">
+                <div className="relative" ref={userDropdownRef}>
+                    <button onClick={() => setUserDropdownOpen(prev => !prev)} className="flex items-center space-x-2 focus:outline-none">
                        {currentUser && (
                            <>
                              <img className="h-8 w-8 rounded-full object-cover" src={currentUser.avatarUrl} alt="Your avatar" />
@@ -65,6 +77,23 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
                            </>
                        )}
                     </button>
+                    {isUserDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 z-50">
+                            <Link
+                                to="/profil"
+                                onClick={() => setUserDropdownOpen(false)}
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                                Mon Profil
+                            </Link>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                                Déconnexion
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </header>
