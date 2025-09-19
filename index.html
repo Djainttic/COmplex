@@ -5,62 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BungalowComplex Manager</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233b82f6'><path d='M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z'/></svg>" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              'primary': {
-                '50': '#eff6ff',
-                '100': '#dbeafe',
-                '200': '#bfdbfe',
-                '300': '#93c5fd',
-                '400': '#60a5fa',
-                '500': '#3b82f6',
-                '600': '#2563eb',
-                '700': '#1d4ed8',
-                '800': '#1e40af',
-                '900': '#1e3a8a',
-                '950': '#172554',
-              },
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-        .printable-area, .printable-area * {
-          visibility: visible;
-        }
-        .printable-area {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-        }
-      }
-    </style>
-  <!-- Add Babel for in-browser JSX/TSX transformation -->
-  <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
   <script type="importmap">
 {
   "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.1"
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.1",
+    "vite": "https://aistudiocdn.com/vite@^7.1.6",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.3"
   }
 }
 </script>
 </head>
   <body class="bg-gray-100 dark:bg-gray-900">
     <div id="root"></div>
-    <!-- Tell Babel to use presets for both React (JSX) and TypeScript (TSX) -->
-    <script type="text/babel" data-presets="react,typescript" data-type="module" src="index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
