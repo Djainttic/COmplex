@@ -60,7 +60,7 @@
 </head>
   <body class="bg-gray-100 dark:bg-gray-900">
     <div id="root"></div>
-    <!-- Change script type to text/babel to be processed by Babel Standalone -->
-    <script type="text/babel" data-type="module" src="index.tsx"></script>
+    <!-- Tell Babel to use presets for both React (JSX) and TypeScript (TSX) -->
+    <script type="text/babel" data-presets="react,typescript" data-type="module" src="index.tsx"></script>
   </body>
 </html>
