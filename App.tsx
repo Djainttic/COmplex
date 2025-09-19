@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { NotificationProvider } from './hooks/useNotifications';
 import { DataProvider } from './hooks/useData';
-import { Permission } from './types';
+import { Permission, UserRole } from './types';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import DashboardPage from './components/pages/DashboardPage';
@@ -17,10 +17,23 @@ import ClientsPage from './components/pages/ClientsPage';
 import MaintenancePage from './components/pages/MaintenancePage';
 import ReportsPage from './components/pages/ReportsPage';
 import LoginPage from './components/pages/LoginPage';
+import { NAV_ITEMS } from './constants';
 
 const ProtectedRoute: React.FC<{ permission?: Permission | Permission[], children: JSX.Element }> = ({ permission, children }) => {
-    const { hasPermission } = useAuth();
-    if (permission && !hasPermission(permission)) {
+    const { hasPermission, settings, currentUser } = useAuth();
+    const location = useLocation();
+
+    // Find the module key from NAV_ITEMS based on the current path
+    const navItem = NAV_ITEMS.find(item => item.path === location.pathname);
+    const moduleKey = navItem?.path.replace('/', '') || 'dashboard';
+    const isModuleActive = settings.moduleStatus[moduleKey] ?? true;
+
+    // SuperAdmin can see all modules regardless of active status
+    if (currentUser?.role === UserRole.SuperAdmin) {
+        return children;
+    }
+
+    if (!isModuleActive || (permission && !hasPermission(permission))) {
         return <Navigate to="/" replace />;
     }
     return children;

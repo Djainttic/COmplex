@@ -1,7 +1,8 @@
 // hooks/useData.tsx
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest } from '../types';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, BungalowStatus } from '../types';
 import { MOCK_BUNGALOWS, MOCK_CLIENTS, MOCK_RESERVATIONS, MOCK_INVOICES, MOCK_MAINTENANCE_REQUESTS } from '../constants';
+import { useAuth } from './useAuth';
 
 interface DataContextType {
     bungalows: Bungalow[];
@@ -31,11 +32,41 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { settings } = useAuth(); // Access settings for automation rules
     const [bungalows, setBungalows] = useState<Bungalow[]>(MOCK_BUNGALOWS);
     const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS);
     const [reservations, setReservations] = useState<Reservation[]>(MOCK_RESERVATIONS);
     const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES);
     const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>(MOCK_MAINTENANCE_REQUESTS);
+
+    // Automation effect for bungalow status
+    useEffect(() => {
+        if (settings.bungalows.automation.enableAutoCleaning) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const bungalowUpdates = new Map<string, BungalowStatus>();
+
+            reservations.forEach(res => {
+                const endDate = new Date(res.endDate);
+                if (endDate < today) {
+                    const bungalow = bungalows.find(b => b.id === res.bungalowId);
+                    if (bungalow && bungalow.status === BungalowStatus.Occupied) {
+                        bungalowUpdates.set(bungalow.id, BungalowStatus.Cleaning);
+                    }
+                }
+            });
+
+            if (bungalowUpdates.size > 0) {
+                console.log(`Automation: Updating ${bungalowUpdates.size} bungalows to 'Cleaning' status.`);
+                setBungalows(prev =>
+                    prev.map(b => bungalowUpdates.has(b.id) ? { ...b, status: bungalowUpdates.get(b.id)! } : b)
+                );
+            }
+        }
+    // This effect should run when the app loads or settings change.
+    // We don't add reservations/bungalows to dependencies to prevent potential loops on frequent data changes.
+    }, [settings.bungalows.automation.enableAutoCleaning]);
     
     // Bungalows
     const updateBungalow = (bungalow: Bungalow) => setBungalows(prev => prev.map(b => b.id === bungalow.id ? bungalow : b));

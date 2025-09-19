@@ -2,19 +2,25 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { User, Permission, Settings, UserRole, UserStatus, Currency, BungalowType, RoleSetting, RolePermissions, PricingAdjustmentType } from '../types';
 
+const ALL_PERMISSIONS: Permission[] = [
+    'bungalows:read', 'bungalows:create', 'bungalows:update', 'bungalows:update_status', 'bungalows:delete',
+    'reservations:read', 'reservations:write',
+    'clients:read', 'clients:write',
+    'maintenance:read', 'maintenance:write',
+    'reports:read', 'reports:write',
+    'users:read', 'users:write',
+    'settings:read', 'settings:write',
+    'billing:read', 'billing:write',
+];
+
 const MOCK_ROLES: RoleSetting[] = [
     {
+        roleName: UserRole.SuperAdmin,
+        permissions: ALL_PERMISSIONS.reduce((acc, perm) => ({ ...acc, [perm]: true }), {})
+    },
+    {
         roleName: UserRole.Admin,
-        permissions: {
-            'bungalows:read': true, 'bungalows:create': true, 'bungalows:update': true, 'bungalows:update_status': true, 'bungalows:delete': true,
-            'reservations:read': true, 'reservations:write': true,
-            'clients:read': true, 'clients:write': true,
-            'maintenance:read': true, 'maintenance:write': true,
-            'reports:read': true, 'reports:write': true,
-            'users:read': true, 'users:write': true,
-            'settings:read': true, 'settings:write': true,
-            'billing:read': true, 'billing:write': true,
-        }
+        permissions: ALL_PERMISSIONS.reduce((acc, perm) => ({ ...acc, [perm]: true }), {})
     },
     {
         roleName: UserRole.Manager,
@@ -53,6 +59,18 @@ const getPermissionsForRole = (role: UserRole): Permission[] => {
 };
 
 const MOCK_ALL_USERS: User[] = [
+    {
+        id: 'user-superadmin',
+        name: 'Super Admin',
+        email: 'superadmin@bungalow.dz',
+        phone: '0555000000',
+        avatarUrl: 'https://i.pravatar.cc/150?u=superadmin',
+        role: UserRole.SuperAdmin,
+        status: UserStatus.Active,
+        permissions: getPermissionsForRole(UserRole.SuperAdmin),
+        lastLogin: new Date().toISOString(),
+        isOnline: true,
+    },
     {
         id: 'user-admin',
         name: 'Admin Admin',
@@ -147,7 +165,10 @@ const MOCK_SETTINGS: Settings = {
             { id: 'amenity-6', name: 'Service de chambre' },
             { id: 'amenity-7', name: 'Mini-bar' },
             { id: 'amenity-8', name: 'Terrasse privée' },
-        ]
+        ],
+        automation: {
+            enableAutoCleaning: true,
+        }
     },
     security: {
         passwordPolicy: {
@@ -167,6 +188,17 @@ const MOCK_SETTINGS: Settings = {
         pointsPerNight: 10,
         pointsForFirstReservation: 50,
     },
+    moduleStatus: {
+        dashboard: true,
+        bungalows: true,
+        reservations: true,
+        clients: true,
+        billing: true,
+        maintenance: true,
+        reports: true,
+        users: true,
+        settings: true,
+    }
 };
 
 interface AuthContextType {
@@ -209,6 +241,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const hasPermission = (permission: Permission | Permission[]): boolean => {
         if (!currentUser) return false;
+        if (currentUser.role === UserRole.SuperAdmin) return true; // SuperAdmin bypasses all checks
         const userPermissions = new Set(currentUser.permissions);
         if (Array.isArray(permission)) {
             return permission.every(p => userPermissions.has(p));

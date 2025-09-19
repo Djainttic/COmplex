@@ -1,6 +1,8 @@
 
 
 import React, { useState } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { UserRole } from '../../types';
 import GeneralSettingsForm from '../settings/GeneralSettingsForm';
 import FinancialSettingsForm from '../settings/FinancialSettingsForm';
 import SecuritySettingsForm from '../settings/SecuritySettingsForm';
@@ -8,30 +10,27 @@ import BungalowSettingsForm from '../settings/BungalowSettingsForm';
 import RolesSettingsForm from '../settings/RolesSettingsForm';
 import LoyaltySettingsForm from '../settings/LoyaltySettingsForm';
 import PricingSettingsForm from '../settings/PricingSettingsForm';
+import ModuleSettingsForm from '../settings/ModuleSettingsForm';
 
-type Tab = 'general' | 'financial' | 'pricing' | 'security' | 'bungalows' | 'roles' | 'loyalty';
+type Tab = 'general' | 'financial' | 'pricing' | 'security' | 'bungalows' | 'roles' | 'loyalty' | 'modules';
 
 const SettingsPage: React.FC = () => {
+    const { currentUser } = useAuth();
     const [activeTab, setActiveTab] = useState<Tab>('general');
+    
+    const isSuperAdmin = currentUser?.role === UserRole.SuperAdmin;
 
     const renderTabContent = () => {
         switch (activeTab) {
-            case 'general':
-                return <GeneralSettingsForm />;
-            case 'financial':
-                return <FinancialSettingsForm />;
-            case 'pricing':
-                return <PricingSettingsForm />;
-            case 'security':
-                return <SecuritySettingsForm />;
-            case 'bungalows':
-                return <BungalowSettingsForm />;
-            case 'roles':
-                return <RolesSettingsForm />;
-            case 'loyalty':
-                return <LoyaltySettingsForm />;
-            default:
-                return null;
+            case 'general': return <GeneralSettingsForm />;
+            case 'financial': return <FinancialSettingsForm />;
+            case 'pricing': return <PricingSettingsForm />;
+            case 'security': return <SecuritySettingsForm />;
+            case 'bungalows': return <BungalowSettingsForm />;
+            case 'roles': return <RolesSettingsForm />;
+            case 'loyalty': return <LoyaltySettingsForm />;
+            case 'modules': return isSuperAdmin ? <ModuleSettingsForm /> : null;
+            default: return null;
         }
     };
 
@@ -65,6 +64,7 @@ const SettingsPage: React.FC = () => {
                         <TabButton tabName="roles" label="Rôles" />
                         <TabButton tabName="loyalty" label="Fidélité" />
                         <TabButton tabName="security" label="Sécurité" />
+                        {isSuperAdmin && <TabButton tabName="modules" label="Modules" />}
                     </nav>
                 </div>
 

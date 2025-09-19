@@ -136,12 +136,14 @@ const ProfilePage: React.FC = () => {
                 </div>
             </div>
 
-            <AvatarUploadModal
-                isOpen={isAvatarModalOpen}
-                onClose={() => setAvatarModalOpen(false)}
-                onSave={handleAvatarSave}
-                currentAvatarUrl={currentUser.avatarUrl}
-            />
+            {isAvatarModalOpen && (
+                <AvatarUploadModal
+                    isOpen={isAvatarModalOpen}
+                    onClose={() => setAvatarModalOpen(false)}
+                    onSave={handleAvatarSave}
+                    currentAvatarUrl={currentUser.avatarUrl}
+                />
+            )}
         </div>
     );
 };

@@ -41,6 +41,7 @@ export type Permission =
   | 'billing:write';
 
 export enum UserRole {
+  SuperAdmin = 'Super Administrateur',
   Admin = 'Administrateur',
   Manager = 'Manager',
   Employee = 'Employé',
@@ -238,6 +239,9 @@ export interface BungalowTypeSetting {
 export interface BungalowSettings {
     types: BungalowTypeSetting[];
     allAmenities: AmenitySetting[];
+    automation: {
+        enableAutoCleaning: boolean;
+    };
 }
 
 export interface LoyaltySettings {
@@ -250,6 +254,7 @@ export interface PasswordPolicy {
     minLength: number;
     requireUppercase: boolean;
     requireLowercase: boolean;
+
     requireNumbers: boolean;
     requireSymbols: boolean;
 }
@@ -272,6 +277,7 @@ export interface Settings {
     security: SecuritySettings;
     roles: RoleSetting[];
     loyalty: LoyaltySettings;
+    moduleStatus: Record<string, boolean>;
 }
 
 // Audit Logs

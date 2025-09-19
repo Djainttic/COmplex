@@ -10,8 +10,7 @@ const BungalowSettingsForm: React.FC = () => {
     const canWrite = hasPermission('settings:write');
 
     // Local state to manage bungalow settings edits
-    const [bungalowTypes, setBungalowTypes] = useState<BungalowTypeSetting[]>(settings.bungalows.types);
-    const [allAmenities, setAllAmenities] = useState<AmenitySetting[]>(settings.bungalows.allAmenities);
+    const [bungalowSettings, setBungalowSettings] = useState(settings.bungalows);
 
     // Modal states
     const [isTypeModalOpen, setTypeModalOpen] = useState(false);
@@ -31,17 +30,19 @@ const BungalowSettingsForm: React.FC = () => {
     };
 
     const handleSaveType = (typeToSave: BungalowTypeSetting) => {
-        if (selectedType) {
-            setBungalowTypes(prev => prev.map(t => t.id === typeToSave.id ? typeToSave : t));
-        } else {
-            setBungalowTypes(prev => [...prev, typeToSave]);
-        }
+        setBungalowSettings(prev => {
+            const existing = prev.types.find(t => t.id === typeToSave.id);
+            if (existing) {
+                return { ...prev, types: prev.types.map(t => t.id === typeToSave.id ? typeToSave : t) };
+            }
+            return { ...prev, types: [...prev.types, typeToSave] };
+        });
         setTypeModalOpen(false);
     };
     
     const handleDeleteType = (typeId: string) => {
         if (window.confirm("Êtes-vous sûr de vouloir supprimer ce type ? Cela pourrait affecter les bungalows existants.")) {
-            setBungalowTypes(prev => prev.filter(t => t.id !== typeId));
+            setBungalowSettings(prev => ({...prev, types: prev.types.filter(t => t.id !== typeId) }));
         }
     };
     
@@ -57,31 +58,34 @@ const BungalowSettingsForm: React.FC = () => {
     };
     
     const handleSaveAmenity = (amenityToSave: AmenitySetting) => {
-        if (selectedAmenity) {
-            setAllAmenities(prev => prev.map(a => a.id === amenityToSave.id ? amenityToSave : a));
-        } else {
-            setAllAmenities(prev => [...prev, amenityToSave]);
-        }
+        setBungalowSettings(prev => {
+             const existing = prev.allAmenities.find(a => a.id === amenityToSave.id);
+             if (existing) {
+                return { ...prev, allAmenities: prev.allAmenities.map(a => a.id === amenityToSave.id ? amenityToSave : a) };
+             }
+             return { ...prev, allAmenities: [...prev.allAmenities, amenityToSave] };
+        });
         setAmenityModalOpen(false);
     };
     
     const handleDeleteAmenity = (amenityId: string) => {
         if (window.confirm("Êtes-vous sûr de vouloir supprimer cet équipement ? Il sera retiré de tous les bungalows.")) {
-           setAllAmenities(prev => prev.filter(a => a.id !== amenityId));
+           setBungalowSettings(prev => ({...prev, allAmenities: prev.allAmenities.filter(a => a.id !== amenityId)}));
         }
+    };
+    
+    const handleAutomationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { checked } = e.target;
+        setBungalowSettings(prev => ({
+            ...prev,
+            automation: { ...prev.automation, enableAutoCleaning: checked }
+        }));
     };
     
     // Main form submission
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        updateSettings({
-            ...settings,
-            bungalows: {
-                types: bungalowTypes,
-                allAmenities: allAmenities,
-            }
-        });
-        // In a real app, show a success toast
+        updateSettings({ ...settings, bungalows: bungalowSettings });
         alert("Paramètres des bungalows mis à jour !");
     };
 
@@ -98,7 +102,7 @@ const BungalowSettingsForm: React.FC = () => {
                 </div>
                 <div className="mt-4 flow-root">
                     <ul role="list" className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {bungalowTypes.map(type => (
+                        {bungalowSettings.types.map(type => (
                             <li key={type.id} className="py-4 flex items-center justify-between">
                                 <div className="min-w-0">
                                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{type.name}</p>
@@ -115,6 +119,30 @@ const BungalowSettingsForm: React.FC = () => {
                     </ul>
                 </div>
             </div>
+             {/* Automation Section */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                 <div>
+                    <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">Automatisation des Statuts</h3>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Simplifiez la gestion en automatisant les changements de statut.
+                    </p>
+                </div>
+                <div className="mt-4 relative flex items-start">
+                    <div className="flex items-center h-5">
+                         <input id="enableAutoCleaning" name="enableAutoCleaning" type="checkbox"
+                            checked={bungalowSettings.automation.enableAutoCleaning}
+                            onChange={handleAutomationChange}
+                            disabled={!canWrite}
+                            className="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50" />
+                    </div>
+                    <div className="ml-3 text-sm">
+                        <label htmlFor="enableAutoCleaning" className="font-medium text-gray-700 dark:text-gray-300">Activer le passage automatique en "Nettoyage" après le départ d'un client</label>
+                         <p className="text-xs text-gray-500 dark:text-gray-400">
+                           Quand une réservation se termine, si le bungalow est "Occupé", il passera automatiquement en "Nettoyage".
+                         </p>
+                    </div>
+                </div>
+            </div>
 
             {/* Amenities Section */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -127,7 +155,7 @@ const BungalowSettingsForm: React.FC = () => {
                 </div>
                 <div className="mt-4 flow-root">
                      <ul role="list" className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {allAmenities.map(amenity => (
+                        {bungalowSettings.allAmenities.map(amenity => (
                             <li key={amenity.id} className="py-3 flex items-center justify-between">
                                 <p className="text-sm font-medium text-gray-900 dark:text-white">{amenity.name}</p>
                                 {canWrite && (
