@@ -290,7 +290,6 @@ export interface PasswordPolicy {
     minLength: number;
     requireUppercase: boolean;
     requireLowercase: boolean;
-
     requireNumbers: boolean;
     requireSymbols: boolean;
 }
