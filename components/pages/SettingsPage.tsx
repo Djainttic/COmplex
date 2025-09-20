@@ -8,11 +8,10 @@ import FinancialSettingsForm from '../settings/FinancialSettingsForm';
 import SecuritySettingsForm from '../settings/SecuritySettingsForm';
 import BungalowSettingsForm from '../settings/BungalowSettingsForm';
 import RolesSettingsForm from '../settings/RolesSettingsForm';
-import LoyaltySettingsForm from '../settings/LoyaltySettingsForm';
 import PricingSettingsForm from '../settings/PricingSettingsForm';
 import ModuleSettingsForm from '../settings/ModuleSettingsForm';
 
-type Tab = 'general' | 'financial' | 'pricing' | 'security' | 'bungalows' | 'roles' | 'loyalty' | 'modules';
+type Tab = 'general' | 'financial' | 'pricing' | 'security' | 'bungalows' | 'roles' | 'modules';
 
 const SettingsPage: React.FC = () => {
     const { currentUser } = useAuth();
@@ -28,7 +27,6 @@ const SettingsPage: React.FC = () => {
             case 'security': return <SecuritySettingsForm />;
             case 'bungalows': return <BungalowSettingsForm />;
             case 'roles': return <RolesSettingsForm />;
-            case 'loyalty': return <LoyaltySettingsForm />;
             case 'modules': return isSuperAdmin ? <ModuleSettingsForm /> : null;
             default: return null;
         }
@@ -62,7 +60,6 @@ const SettingsPage: React.FC = () => {
                         <TabButton tabName="pricing" label="Tarification" />
                         <TabButton tabName="bungalows" label="Bungalows" />
                         <TabButton tabName="roles" label="Rôles" />
-                        <TabButton tabName="loyalty" label="Fidélité" />
                         <TabButton tabName="security" label="Sécurité" />
                         {isSuperAdmin && <TabButton tabName="modules" label="Modules" />}
                     </nav>

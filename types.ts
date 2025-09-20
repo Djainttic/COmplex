@@ -40,7 +40,9 @@ export type Permission =
   | 'billing:read'
   | 'billing:write'
   | 'communication:read'
-  | 'communication:write';
+  | 'communication:write'
+  | 'loyalty:read'
+  | 'loyalty:write';
 
 export enum UserRole {
   SuperAdmin = 'Super Administrateur',
@@ -262,6 +264,26 @@ export interface LoyaltySettings {
     enabled: boolean;
     pointsPerNight: number;
     pointsForFirstReservation: number;
+    pointsToCurrencyValue: number; // e.g., 10, meaning 1 point = 10 DZD
+}
+
+// Loyalty Logs
+export enum LoyaltyLogType {
+    Earned = 'Gagnés',
+    Redeemed = 'Utilisés',
+    ManualAdjustment = 'Ajustement manuel',
+    InitialBonus = 'Bonus initial',
+}
+
+export interface LoyaltyLog {
+    id: string;
+    clientId: string;
+    type: LoyaltyLogType;
+    pointsChange: number; // can be negative
+    reason: string;
+    relatedId?: string; // e.g., reservationId or invoiceId
+    timestamp: string; // ISO date string
+    adminUserId?: string; // For manual adjustments
 }
 
 export interface PasswordPolicy {

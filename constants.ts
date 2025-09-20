@@ -1,4 +1,4 @@
-import { Bungalow, BungalowStatus, BungalowType, Permission, Client, Reservation, ReservationStatus, Invoice, InvoiceStatus, MaintenanceRequest, MaintenanceStatus, MaintenancePriority, User, UserRole } from "./types";
+import { Bungalow, BungalowStatus, BungalowType, Permission, Client, Reservation, ReservationStatus, Invoice, InvoiceStatus, MaintenanceRequest, MaintenanceStatus, MaintenancePriority, User, UserRole, LoyaltyLog, LoyaltyLogType } from "./types";
 
 export interface NavItem {
   path: string;
@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/reservations', label: 'Réservations', icon: 'calendar', permission: 'reservations:read' },
   { path: '/clients', label: 'Clients', icon: 'users', permission: 'clients:read' },
   { path: '/facturation', label: 'Facturation', icon: 'currency', permission: 'billing:read' },
+  { path: '/fidelite', label: 'Fidélité', icon: 'star', permission: 'loyalty:read' },
   { path: '/communication', label: 'Communication', icon: 'communication', permission: 'communication:read' },
   { path: '/maintenance', label: 'Maintenance', icon: 'wrench', permission: 'maintenance:read' },
   { path: '/rapports', label: 'Rapports', icon: 'chart', permission: 'reports:read' },
@@ -238,6 +239,36 @@ export const MOCK_MAINTENANCE_REQUESTS: MaintenanceRequest[] = [
         resolvedDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
         resolutionDetails: 'Le filtre à air a été nettoyé et le gaz rechargé.'
     }
+];
+
+export const MOCK_LOYALTY_LOGS: LoyaltyLog[] = [
+    {
+        id: 'log-1',
+        clientId: 'client-2',
+        type: LoyaltyLogType.Earned,
+        pointsChange: 40,
+        reason: 'Séjour',
+        relatedId: 'res-2',
+        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+        id: 'log-2',
+        clientId: 'client-1',
+        type: LoyaltyLogType.ManualAdjustment,
+        pointsChange: 50,
+        reason: 'Geste commercial suite à un problème de climatisation',
+        timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        adminUserId: 'user-manager',
+    },
+    {
+        id: 'log-3',
+        clientId: 'client-2',
+        type: LoyaltyLogType.InitialBonus,
+        pointsChange: 50,
+        reason: 'Bonus de première réservation',
+        timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+        relatedId: 'res-initial'
+    },
 ];
 
 export const formatDateDDMMYYYY = (date: string | Date | null | undefined): string => {

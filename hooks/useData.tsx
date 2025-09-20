@@ -1,7 +1,7 @@
 // hooks/useData.tsx
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, BungalowStatus, CommunicationLog } from '../types';
-import { MOCK_BUNGALOWS, MOCK_CLIENTS, MOCK_RESERVATIONS, MOCK_INVOICES, MOCK_MAINTENANCE_REQUESTS } from '../constants';
+import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, BungalowStatus, CommunicationLog, LoyaltyLog } from '../types';
+import { MOCK_BUNGALOWS, MOCK_CLIENTS, MOCK_RESERVATIONS, MOCK_INVOICES, MOCK_MAINTENANCE_REQUESTS, MOCK_LOYALTY_LOGS } from '../constants';
 import { useAuth } from './useAuth';
 
 const MOCK_COMMUNICATION_LOGS: CommunicationLog[] = [
@@ -53,6 +53,9 @@ interface DataContextType {
 
     communicationLogs: CommunicationLog[];
     addCommunicationLog: (log: CommunicationLog) => void;
+    
+    loyaltyLogs: LoyaltyLog[];
+    addLoyaltyLog: (log: LoyaltyLog) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -65,6 +68,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES);
     const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>(MOCK_MAINTENANCE_REQUESTS);
     const [communicationLogs, setCommunicationLogs] = useState<CommunicationLog[]>(MOCK_COMMUNICATION_LOGS);
+    const [loyaltyLogs, setLoyaltyLogs] = useState<LoyaltyLog[]>(MOCK_LOYALTY_LOGS);
 
     // Automation effect for bungalow status
     useEffect(() => {
@@ -123,6 +127,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Communication
     const addCommunicationLog = (log: CommunicationLog) => setCommunicationLogs(prev => [log, ...prev]);
 
+    // Loyalty
+    const addLoyaltyLog = (log: LoyaltyLog) => setLoyaltyLogs(prev => [log, ...prev].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+
+
     const value: DataContextType = {
         bungalows, updateBungalow, addBungalow, deleteBungalow,
         clients, updateClient, addClient, deleteClient,
@@ -130,6 +138,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         invoices, updateInvoice, addInvoice, addInvoices, deleteInvoice,
         maintenanceRequests, updateMaintenanceRequest, addMaintenanceRequest, deleteMaintenanceRequest,
         communicationLogs, addCommunicationLog,
+        loyaltyLogs, addLoyaltyLog,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

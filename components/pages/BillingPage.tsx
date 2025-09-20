@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
-import { Invoice, InvoiceStatus, ReservationStatus, Reservation } from '../../types';
+import { Invoice, InvoiceStatus, ReservationStatus, Reservation, LoyaltyLogType } from '../../types';
 import InvoiceTable from '../billing/InvoiceTable';
 import InvoiceDetailsModal from '../billing/InvoiceDetailsModal';
 import InvoiceFilters from '../billing/InvoiceFilters';
@@ -9,13 +9,15 @@ import Button from '../ui/Button';
 import SelectReservationsModal from '../billing/SelectReservationsModal';
 import StatCard from '../ui/StatCard';
 import InvoiceFormModal from '../billing/InvoiceFormModal';
+import MonthlyRevenueChart from '../billing/MonthlyRevenueChart';
 
 const BillingPage: React.FC = () => {
-    const { hasPermission, settings } = useAuth();
+    const { currentUser, hasPermission, settings } = useAuth();
     const { 
         invoices, addInvoice, addInvoices, updateInvoice,
         clients, updateClient, 
-        reservations, bungalows 
+        reservations, bungalows,
+        addLoyaltyLog
     } = useData();
 
     const [filters, setFilters] = useState({
@@ -68,10 +70,38 @@ const BillingPage: React.FC = () => {
             }
             const nights = Math.ceil((new Date(reservation.endDate).getTime() - new Date(reservation.startDate).getTime()) / (1000 * 3600 * 24));
             const pointsForStay = (nights > 0 ? nights : 1) * settings.loyalty.pointsPerNight;
+            
             const previouslyPaidInvoices = invoices.filter(inv => inv.clientId === client.id && inv.status === InvoiceStatus.Paid && inv.id !== invoiceToUpdate.id);
             const isFirstPaidReservation = previouslyPaidInvoices.length === 0;
             const bonusPoints = isFirstPaidReservation ? settings.loyalty.pointsForFirstReservation : 0;
-            const totalPointsToAdd = pointsForStay + bonusPoints;
+            
+            let totalPointsToAdd = 0;
+            
+            if (pointsForStay > 0) {
+                 addLoyaltyLog({
+                    id: `log-${Date.now()}-stay`,
+                    clientId: client.id,
+                    type: LoyaltyLogType.Earned,
+                    pointsChange: pointsForStay,
+                    reason: `Points pour séjour (${nights} nuits)`,
+                    relatedId: reservation.id,
+                    timestamp: new Date().toISOString()
+                });
+                totalPointsToAdd += pointsForStay;
+            }
+            
+            if (bonusPoints > 0) {
+                 addLoyaltyLog({
+                    id: `log-${Date.now()}-bonus`,
+                    clientId: client.id,
+                    type: LoyaltyLogType.InitialBonus,
+                    pointsChange: bonusPoints,
+                    reason: 'Bonus de première réservation',
+                    relatedId: reservation.id,
+                    timestamp: new Date().toISOString()
+                });
+                totalPointsToAdd += bonusPoints;
+            }
 
             if (totalPointsToAdd > 0) {
                 updateClient({ ...client, loyaltyPoints: client.loyaltyPoints + totalPointsToAdd });
@@ -170,6 +200,24 @@ const BillingPage: React.FC = () => {
         return { totalInvoiced, totalPaid, totalOverdue };
     }, [filteredInvoices]);
 
+    const monthlyRevenueData = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+        const revenueData = monthNames.map(month => ({ month, revenue: 0 }));
+
+        const paidInvoicesThisYear = invoices.filter(inv => {
+            const issueDate = new Date(inv.issueDate);
+            return inv.status === InvoiceStatus.Paid && issueDate.getFullYear() === currentYear;
+        });
+
+        paidInvoicesThisYear.forEach(inv => {
+            const monthIndex = new Date(inv.issueDate).getMonth(); // 0-11
+            revenueData[monthIndex].revenue += inv.totalAmount;
+        });
+
+        return revenueData;
+    }, [invoices]);
+
     const reservationMap = new Map(reservations.map(r => [r.id, r]));
     const bungalowMap = new Map(bungalows.map(b => [b.id, b]));
     
@@ -210,6 +258,8 @@ const BillingPage: React.FC = () => {
                 <StatCard title="Total Encaissé (période)" value={`${stats.totalPaid.toLocaleString('fr-FR')} ${settings.financial.currency}`} icon={icons.paid} />
                 <StatCard title="Total en Retard (période)" value={`${stats.totalOverdue.toLocaleString('fr-FR')} ${settings.financial.currency}`} icon={icons.overdue} />
             </div>
+
+            <MonthlyRevenueChart data={monthlyRevenueData} currency={settings.financial.currency} />
 
             <InvoiceFilters onFilterChange={setFilters} />
 

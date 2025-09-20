@@ -12,6 +12,7 @@ const ALL_PERMISSIONS: Permission[] = [
     'settings:read', 'settings:write',
     'billing:read', 'billing:write',
     'communication:read', 'communication:write',
+    'loyalty:read', 'loyalty:write',
 ];
 
 const MOCK_ROLES: RoleSetting[] = [
@@ -30,6 +31,7 @@ const MOCK_ROLES: RoleSetting[] = [
             'users:read': true, 'users:write': true,
             'billing:read': true, 'billing:write': true,
             'communication:read': true, 'communication:write': true,
+            'loyalty:read': true, 'loyalty:write': true,
             'settings:read': true, 
             'settings:write': false // Admins can see settings but not change them.
         }
@@ -44,6 +46,7 @@ const MOCK_ROLES: RoleSetting[] = [
             'reports:read': true, 'reports:write': false,
             'billing:read': true, 'billing:write': true,
             'communication:read': true, 'communication:write': true,
+            'loyalty:read': true, 'loyalty:write': true,
             'users:read': true, 'users:write': false,
             'settings:read': true, 'settings:write': false,
         }
@@ -58,6 +61,7 @@ const MOCK_ROLES: RoleSetting[] = [
             'reports:read': false, 'reports:write': false,
             'billing:read': true, 'billing:write': false,
             'communication:read': true, 'communication:write': false,
+            'loyalty:read': true, 'loyalty:write': false,
             'users:read': false, 'users:write': false,
             'settings:read': false, 'settings:write': false,
         }
@@ -201,6 +205,7 @@ const MOCK_SETTINGS: Settings = {
         enabled: true,
         pointsPerNight: 10,
         pointsForFirstReservation: 50,
+        pointsToCurrencyValue: 10, // 1 point = 10 DZD
     },
     moduleStatus: {
         dashboard: true,
@@ -213,6 +218,7 @@ const MOCK_SETTINGS: Settings = {
         rapports: true,
         utilisateurs: true,
         parametres: true,
+        fidelite: true,
     }
 };
 

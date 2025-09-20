@@ -18,6 +18,7 @@ import MaintenancePage from './components/pages/MaintenancePage';
 import ReportsPage from './components/pages/ReportsPage';
 import CommunicationPage from './components/pages/CommunicationPage';
 import LoginPage from './components/pages/LoginPage';
+import LoyaltyPage from './components/pages/LoyaltyPage';
 import { NAV_ITEMS } from './constants';
 
 const ProtectedRoute: React.FC<{ permission?: Permission | Permission[], children: JSX.Element }> = ({ permission, children }) => {
@@ -92,6 +93,11 @@ const App: React.FC = () => {
                                 <Route path="/facturation" element={
                                     <ProtectedRoute permission="billing:read">
                                         <BillingPage />
+                                    </ProtectedRoute>
+                                } />
+                                 <Route path="/fidelite" element={
+                                    <ProtectedRoute permission="loyalty:read">
+                                        <LoyaltyPage />
                                     </ProtectedRoute>
                                 } />
                                 <Route path="/communication" element={

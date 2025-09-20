@@ -56,7 +56,7 @@ const LoyaltySettingsForm: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                    <div className="sm:col-span-3">
+                    <div className="sm:col-span-2">
                         <label htmlFor="pointsPerNight" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Points par nuitée
                         </label>
@@ -69,12 +69,12 @@ const LoyaltySettingsForm: React.FC = () => {
                             disabled={!canWrite || !formData.enabled}
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 sm:text-sm"
                         />
-                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                           Points attribués pour chaque nuit d'un séjour confirmé.
+                         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                           Points gagnés pour chaque nuit.
                         </p>
                     </div>
 
-                    <div className="sm:col-span-3">
+                    <div className="sm:col-span-2">
                         <label htmlFor="pointsForFirstReservation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Bonus première réservation
                         </label>
@@ -88,7 +88,25 @@ const LoyaltySettingsForm: React.FC = () => {
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 sm:text-sm"
                         />
                          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                           Points bonus offerts à un client après son premier séjour.
+                           Points offerts au premier séjour.
+                        </p>
+                    </div>
+                    
+                    <div className="sm:col-span-2">
+                        <label htmlFor="pointsToCurrencyValue" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Valeur d'un point ({settings.financial.currency})
+                        </label>
+                        <input
+                            type="number"
+                            name="pointsToCurrencyValue"
+                            id="pointsToCurrencyValue"
+                            value={formData.pointsToCurrencyValue}
+                            onChange={handleChange}
+                            disabled={!canWrite || !formData.enabled}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50 sm:text-sm"
+                        />
+                         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                           Valeur de conversion pour les réductions.
                         </p>
                     </div>
                 </div>
