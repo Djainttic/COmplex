@@ -42,7 +42,9 @@ interface DataContextType {
 
     invoices: Invoice[];
     updateInvoice: (inv: Invoice) => void;
+    addInvoice: (inv: Invoice) => void;
     addInvoices: (invs: Invoice[]) => void;
+    deleteInvoice: (invoiceId: string) => void;
     
     maintenanceRequests: MaintenanceRequest[];
     updateMaintenanceRequest: (req: MaintenanceRequest) => void;
@@ -109,7 +111,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Invoices
     const updateInvoice = (inv: Invoice) => setInvoices(prev => prev.map(i => i.id === inv.id ? inv : i));
+    const addInvoice = (inv: Invoice) => setInvoices(prev => [inv, ...prev]);
     const addInvoices = (invs: Invoice[]) => setInvoices(prev => [...invs, ...prev]);
+    const deleteInvoice = (invoiceId: string) => setInvoices(prev => prev.filter(i => i.id !== invoiceId));
 
     // Maintenance
     const updateMaintenanceRequest = (req: MaintenanceRequest) => setMaintenanceRequests(prev => prev.map(r => r.id === req.id ? req : r));
@@ -123,7 +127,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         bungalows, updateBungalow, addBungalow, deleteBungalow,
         clients, updateClient, addClient, deleteClient,
         reservations, updateReservation, addReservation,
-        invoices, updateInvoice, addInvoices,
+        invoices, updateInvoice, addInvoice, addInvoices, deleteInvoice,
         maintenanceRequests, updateMaintenanceRequest, addMaintenanceRequest, deleteMaintenanceRequest,
         communicationLogs, addCommunicationLog,
     };

@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
-import { Invoice, InvoiceStatus, ReservationStatus, Client, Reservation, Bungalow } from '../../types';
+import { Invoice, InvoiceStatus, ReservationStatus, Reservation } from '../../types';
 import InvoiceTable from '../billing/InvoiceTable';
 import InvoiceDetailsModal from '../billing/InvoiceDetailsModal';
 import InvoiceFilters from '../billing/InvoiceFilters';
 import Button from '../ui/Button';
 import SelectReservationsModal from '../billing/SelectReservationsModal';
+import StatCard from '../ui/StatCard';
+import InvoiceFormModal from '../billing/InvoiceFormModal';
 
 const BillingPage: React.FC = () => {
     const { hasPermission, settings } = useAuth();
     const { 
-        invoices, addInvoices, updateInvoice,
+        invoices, addInvoice, addInvoices, updateInvoice,
         clients, updateClient, 
         reservations, bungalows 
     } = useData();
@@ -23,7 +25,9 @@ const BillingPage: React.FC = () => {
         endDate: '',
     });
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+    const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
     const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
+    const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isSelectReservationsModalOpen, setSelectReservationsModalOpen] = useState(false);
 
     const canWrite = hasPermission('billing:write');
@@ -32,61 +36,51 @@ const BillingPage: React.FC = () => {
         setSelectedInvoice(invoice);
         setDetailsModalOpen(true);
     };
+    
+    const handleEditInvoice = (invoice: Invoice) => {
+        setEditingInvoice(invoice);
+        setFormModalOpen(true);
+    };
+    
+    const handleCreateManualInvoice = () => {
+        setEditingInvoice(null);
+        setFormModalOpen(true);
+    };
 
     const handleUpdateStatus = (invoiceId: string, status: InvoiceStatus) => {
         if (!canWrite) return;
-
         const invoiceToUpdate = invoices.find(inv => inv.id === invoiceId);
-        // Prevent re-processing if already paid
-        if (!invoiceToUpdate || (invoiceToUpdate.status === InvoiceStatus.Paid && status === InvoiceStatus.Paid)) return;
+        if (!invoiceToUpdate) return;
+        
+        // Prevent re-processing if status is already the target status
+        if (invoiceToUpdate.status === status) return;
 
-        // FIX: The original logic to update invoices was inefficient and buggy.
-        // It has been replaced with a single, direct call to updateInvoice.
         updateInvoice({ ...invoiceToUpdate, status });
 
-        if (status !== InvoiceStatus.Paid) {
-            return;
-        }
-
-        // --- Loyalty Points Logic ---
-        if (settings.loyalty.enabled) {
+        // --- Loyalty Points Logic (only on payment) ---
+        if (status === InvoiceStatus.Paid && settings.loyalty.enabled) {
             const reservation = reservations.find(r => r.id === invoiceToUpdate.reservationId);
             const client = clients.find(c => c.id === invoiceToUpdate.clientId);
-
             if (!reservation || !client) {
                 console.error("Could not find reservation or client for loyalty points attribution.");
-                alert(`Facture marquée comme payée.`); // Still give feedback
+                alert(`Facture marquée comme payée.`);
                 return;
             }
-
-            // 1. Calculate points for this stay
             const nights = Math.ceil((new Date(reservation.endDate).getTime() - new Date(reservation.startDate).getTime()) / (1000 * 3600 * 24));
             const pointsForStay = (nights > 0 ? nights : 1) * settings.loyalty.pointsPerNight;
-
-            // 2. Check for first reservation bonus
-            // This check correctly uses the `invoices` state from before this update.
-            const previouslyPaidInvoices = invoices.filter(inv =>
-                inv.clientId === client.id &&
-                inv.status === InvoiceStatus.Paid
-            );
+            const previouslyPaidInvoices = invoices.filter(inv => inv.clientId === client.id && inv.status === InvoiceStatus.Paid && inv.id !== invoiceToUpdate.id);
             const isFirstPaidReservation = previouslyPaidInvoices.length === 0;
             const bonusPoints = isFirstPaidReservation ? settings.loyalty.pointsForFirstReservation : 0;
-            
             const totalPointsToAdd = pointsForStay + bonusPoints;
 
             if (totalPointsToAdd > 0) {
-                // 3. Update client object
-                updateClient({
-                    ...client,
-                    loyaltyPoints: client.loyaltyPoints + totalPointsToAdd
-                });
-                // 4. User feedback
-                alert(`Facture marquée comme payée. ${totalPointsToAdd} points de fidélité ont été ajoutés au compte de ${client.name}.`);
+                updateClient({ ...client, loyaltyPoints: client.loyaltyPoints + totalPointsToAdd });
+                alert(`Facture marquée comme payée. ${totalPointsToAdd} points de fidélité ont été ajoutés à ${client.name}.`);
             } else {
                 alert(`Facture marquée comme payée.`);
             }
         } else {
-             alert(`Facture marquée comme payée.`);
+            alert(`Statut de la facture mis à jour.`);
         }
     };
     
@@ -107,8 +101,8 @@ const BillingPage: React.FC = () => {
             const bungalow = bungalows.find(b => b.id === reservation.bungalowId);
 
             if (client && bungalow) {
-                const nights = Math.ceil((new Date(reservation.endDate).getTime() - new Date(reservation.startDate).getTime()) / (1000 * 3600 * 24));
-                 invoiceCount++;
+                const nights = Math.max(1, Math.ceil((new Date(reservation.endDate).getTime() - new Date(reservation.startDate).getTime()) / (1000 * 3600 * 24)));
+                invoiceCount++;
                 const newInvoice: Invoice = {
                     id: `INV-2024-${(invoiceCount).toString().padStart(3, '0')}`,
                     reservationId: reservation.id,
@@ -117,14 +111,12 @@ const BillingPage: React.FC = () => {
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString(),
                     totalAmount: reservation.totalPrice,
                     status: InvoiceStatus.Unpaid,
-                    items: [
-                        {
-                            description: `Séjour Bungalow "${bungalow.name}" (${nights > 0 ? nights : 1} nuits)`,
-                            quantity: nights > 0 ? nights : 1,
-                            unitPrice: bungalow.pricePerNight,
-                            total: reservation.totalPrice,
-                        }
-                    ]
+                    items: [{
+                        description: `Séjour Bungalow "${bungalow.name}" (${nights} nuits)`,
+                        quantity: nights,
+                        unitPrice: bungalow.pricePerNight,
+                        total: reservation.totalPrice,
+                    }]
                 };
                 newInvoices.push(newInvoice);
             }
@@ -134,8 +126,20 @@ const BillingPage: React.FC = () => {
             addInvoices(newInvoices);
             alert(`${newInvoices.length} facture(s) générée(s) avec succès.`);
         }
-        
         setSelectReservationsModalOpen(false);
+    };
+
+     const handleSaveInvoice = (invoiceToSave: Invoice) => {
+        if (editingInvoice) {
+            updateInvoice(invoiceToSave);
+            alert("Facture modifiée avec succès.");
+        } else {
+            const newId = `INV-2024-${(invoices.length + 1).toString().padStart(3, '0')}`;
+            addInvoice({ ...invoiceToSave, id: newId });
+            alert("Facture créée avec succès.");
+        }
+        setFormModalOpen(false);
+        setEditingInvoice(null);
     };
     
     const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
@@ -145,25 +149,26 @@ const BillingPage: React.FC = () => {
         
         return invoices.filter(inv => {
             const client = clientMap.get(inv.clientId);
-
             const statusMatch = filters.status === 'all' || inv.status === filters.status;
-            
             const searchMatch = !lowerCaseSearchTerm || 
                 inv.id.toLowerCase().includes(lowerCaseSearchTerm) ||
                 (client && client.name.toLowerCase().includes(lowerCaseSearchTerm));
-
             const startDate = filters.startDate ? new Date(filters.startDate) : null;
             if (startDate) startDate.setHours(0, 0, 0, 0);
             const endDate = filters.endDate ? new Date(filters.endDate) : null;
             if (endDate) endDate.setHours(23, 59, 59, 999);
-            
             const invoiceDate = new Date(inv.issueDate);
-
             const dateMatch = (!startDate || invoiceDate >= startDate) && (!endDate || invoiceDate <= endDate);
-
             return statusMatch && searchMatch && dateMatch;
         });
     }, [invoices, filters, clientMap]);
+
+    const stats = useMemo(() => {
+        const totalInvoiced = filteredInvoices.reduce((sum, inv) => inv.status !== InvoiceStatus.Cancelled ? sum + inv.totalAmount : sum, 0);
+        const totalPaid = filteredInvoices.reduce((sum, inv) => inv.status === InvoiceStatus.Paid ? sum + inv.totalAmount : sum, 0);
+        const totalOverdue = filteredInvoices.reduce((sum, inv) => inv.status === InvoiceStatus.Overdue ? sum + inv.totalAmount : sum, 0);
+        return { totalInvoiced, totalPaid, totalOverdue };
+    }, [filteredInvoices]);
 
     const reservationMap = new Map(reservations.map(r => [r.id, r]));
     const bungalowMap = new Map(bungalows.map(b => [b.id, b]));
@@ -177,6 +182,12 @@ const BillingPage: React.FC = () => {
         return { invoice: selectedInvoice, client, bungalow };
     }, [selectedInvoice, clientMap, reservationMap, bungalowMap]);
 
+    const icons = {
+        total: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+        paid: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+        overdue: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    };
+
     return (
         <div>
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
@@ -187,10 +198,19 @@ const BillingPage: React.FC = () => {
                     </p>
                 </div>
                  {canWrite && (
-                    <Button onClick={() => setSelectReservationsModalOpen(true)}>Générer une facture</Button>
+                     <div className="flex space-x-2">
+                        <Button variant="secondary" onClick={handleCreateManualInvoice}>Créer une facture manuelle</Button>
+                        <Button onClick={() => setSelectReservationsModalOpen(true)}>Générer depuis une réservation</Button>
+                    </div>
                 )}
             </div>
             
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <StatCard title="Total Facturé (période)" value={`${stats.totalInvoiced.toLocaleString('fr-FR')} ${settings.financial.currency}`} icon={icons.total} />
+                <StatCard title="Total Encaissé (période)" value={`${stats.totalPaid.toLocaleString('fr-FR')} ${settings.financial.currency}`} icon={icons.paid} />
+                <StatCard title="Total en Retard (période)" value={`${stats.totalOverdue.toLocaleString('fr-FR')} ${settings.financial.currency}`} icon={icons.overdue} />
+            </div>
+
             <InvoiceFilters onFilterChange={setFilters} />
 
             <InvoiceTable 
@@ -198,6 +218,7 @@ const BillingPage: React.FC = () => {
                 clients={clients}
                 onView={handleViewInvoice}
                 onUpdateStatus={handleUpdateStatus}
+                onEdit={handleEditInvoice}
             />
 
             {isDetailsModalOpen && selectedInvoiceData && (
@@ -205,6 +226,17 @@ const BillingPage: React.FC = () => {
                     isOpen={isDetailsModalOpen}
                     onClose={() => setDetailsModalOpen(false)}
                     invoiceData={selectedInvoiceData}
+                />
+            )}
+            
+            {isFormModalOpen && (
+                 <InvoiceFormModal
+                    isOpen={isFormModalOpen}
+                    onClose={() => setFormModalOpen(false)}
+                    onSave={handleSaveInvoice}
+                    invoice={editingInvoice}
+                    clients={clients}
+                    reservations={reservations}
                 />
             )}
 

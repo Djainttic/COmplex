@@ -136,6 +136,7 @@ export enum InvoiceStatus {
     Paid = 'Payée',
     Unpaid = 'Non payée',
     Overdue = 'En retard',
+    Cancelled = 'Annulée',
 }
 
 export interface InvoiceItem {

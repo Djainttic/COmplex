@@ -186,6 +186,23 @@ export const MOCK_INVOICES: Invoice[] = [
                 total: 48000
             }
         ]
+    },
+    {
+        id: 'INV-2024-004',
+        reservationId: 'res-5',
+        clientId: 'client-2',
+        issueDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(),
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
+        totalAmount: 75000,
+        status: InvoiceStatus.Cancelled,
+        items: [
+            {
+                description: 'Séjour Suite "Le Corail" (3 nuits)',
+                quantity: 3,
+                unitPrice: 25000,
+                total: 75000
+            }
+        ]
     }
 ];
 
