@@ -20,7 +20,17 @@ const MOCK_ROLES: RoleSetting[] = [
     },
     {
         roleName: UserRole.Admin,
-        permissions: ALL_PERMISSIONS.reduce((acc, perm) => ({ ...acc, [perm]: true }), {})
+        permissions: {
+            'bungalows:read': true, 'bungalows:create': true, 'bungalows:update': true, 'bungalows:update_status': true, 'bungalows:delete': true,
+            'reservations:read': true, 'reservations:write': true,
+            'clients:read': true, 'clients:write': true,
+            'maintenance:read': true, 'maintenance:write': true,
+            'reports:read': true, 'reports:write': true,
+            'users:read': true, 'users:write': true,
+            'billing:read': true, 'billing:write': true,
+            'settings:read': true, 
+            'settings:write': false // Admins can see settings but not change them.
+        }
     },
     {
         roleName: UserRole.Manager,
