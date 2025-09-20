@@ -1,4 +1,4 @@
-import { Bungalow, BungalowStatus, BungalowType, Permission, Client, Reservation, ReservationStatus, Invoice, InvoiceStatus, MaintenanceRequest, MaintenanceStatus, MaintenancePriority } from "./types";
+import { Bungalow, BungalowStatus, BungalowType, Permission, Client, Reservation, ReservationStatus, Invoice, InvoiceStatus, MaintenanceRequest, MaintenanceStatus, MaintenancePriority, User, UserRole } from "./types";
 
 export interface NavItem {
   path: string;
@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/reservations', label: 'Réservations', icon: 'calendar', permission: 'reservations:read' },
   { path: '/clients', label: 'Clients', icon: 'users', permission: 'clients:read' },
   { path: '/facturation', label: 'Facturation', icon: 'currency', permission: 'billing:read' },
+  { path: '/communication', label: 'Communication', icon: 'communication', permission: 'communication:read' },
   { path: '/maintenance', label: 'Maintenance', icon: 'wrench', permission: 'maintenance:read' },
   { path: '/rapports', label: 'Rapports', icon: 'chart', permission: 'reports:read' },
   { path: '/utilisateurs', label: 'Utilisateurs', icon: 'users', permission: 'users:read' },
@@ -266,4 +267,23 @@ export const formatTimeAgo = (isoDate: string): string => {
     if (hours < 24) return `il y a ${hours} h`;
     if (days <= 7) return `il y a ${days} j`;
     return formatDateDDMMYYYY(date);
+};
+
+const ROLE_HIERARCHY: UserRole[] = [
+  UserRole.Employee,
+  UserRole.Manager,
+  UserRole.Admin,
+  UserRole.SuperAdmin,
+];
+
+export const getVisibleUsers = (currentUser: User | null, allUsers: User[]): User[] => {
+  if (!currentUser) return [];
+
+  const currentUserLevel = ROLE_HIERARCHY.indexOf(currentUser.role);
+  if (currentUserLevel === -1) return []; // Should not happen
+
+  return allUsers.filter(user => {
+    const userLevel = ROLE_HIERARCHY.indexOf(user.role);
+    return userLevel <= currentUserLevel;
+  });
 };

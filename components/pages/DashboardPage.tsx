@@ -7,6 +7,7 @@ import BungalowStatusChart from '../dashboard/BungalowStatusChart';
 import UpcomingActivities from '../dashboard/UpcomingActivities';
 import QuickActions from '../dashboard/QuickActions';
 import RecentActivityFeed from '../dashboard/RecentActivityFeed';
+import { getVisibleUsers } from '../../constants';
 
 // Modals for Quick Actions
 import ReservationFormModal from '../reservations/ReservationFormModal';
@@ -14,7 +15,6 @@ import ClientFormModal from '../clients/ClientFormModal';
 import MaintenanceFormModal from '../maintenance/MaintenanceFormModal';
 
 const DashboardPage: React.FC = () => {
-    // FIX: `allUsers` is provided by `useAuth`, not `useData`. Destructured accordingly.
     const { currentUser, allUsers } = useAuth();
     const { 
         bungalows, reservations, clients, maintenanceRequests,
@@ -27,6 +27,8 @@ const DashboardPage: React.FC = () => {
     const [isReservationModalOpen, setReservationModalOpen] = useState(false);
     const [isClientModalOpen, setClientModalOpen] = useState(false);
     const [isMaintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
+
+    const assignableUsers = getVisibleUsers(currentUser, allUsers);
 
     const isToday = (someDate: Date) => {
         const today = new Date();
@@ -140,7 +142,7 @@ const DashboardPage: React.FC = () => {
                     onSave={handleSaveMaintenance}
                     request={null}
                     bungalows={bungalows}
-                    users={allUsers}
+                    users={assignableUsers}
                 />
             )}
         </div>

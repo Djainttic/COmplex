@@ -56,7 +56,7 @@ const SettingsPage: React.FC = () => {
 
             <div className="mt-6">
                 <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-                    <nav className="flex flex-wrap gap-2 sm:space-x-4" aria-label="Tabs">
+                    <nav className="flex flex-wrap gap-2 sm:gap-x-4" aria-label="Tabs">
                         <TabButton tabName="general" label="Général" />
                         <TabButton tabName="financial" label="Financier" />
                         <TabButton tabName="pricing" label="Tarification" />

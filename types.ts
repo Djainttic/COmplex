@@ -38,7 +38,9 @@ export type Permission =
   | 'settings:read'
   | 'settings:write'
   | 'billing:read'
-  | 'billing:write';
+  | 'billing:write'
+  | 'communication:read'
+  | 'communication:write';
 
 export enum UserRole {
   SuperAdmin = 'Super Administrateur',
@@ -179,6 +181,17 @@ export interface MaintenanceRequest {
     createdDate: string; // ISO date string
     resolvedDate?: string; // ISO date string
     resolutionDetails?: string;
+}
+
+// Communication
+export interface CommunicationLog {
+    id: string;
+    recipients: string[]; // Array of client IDs
+    subject: string;
+    body: string;
+    sentDate: string; // ISO date string
+    status: 'Envoyé' | 'Échoué' | 'En attente';
+    sentBy: string; // User ID
 }
 
 

@@ -16,6 +16,7 @@ import BillingPage from './components/pages/BillingPage';
 import ClientsPage from './components/pages/ClientsPage';
 import MaintenancePage from './components/pages/MaintenancePage';
 import ReportsPage from './components/pages/ReportsPage';
+import CommunicationPage from './components/pages/CommunicationPage';
 import LoginPage from './components/pages/LoginPage';
 import { NAV_ITEMS } from './constants';
 
@@ -26,6 +27,8 @@ const ProtectedRoute: React.FC<{ permission?: Permission | Permission[], childre
     // Find the module key from NAV_ITEMS based on the current path
     const navItem = NAV_ITEMS.find(item => item.path === location.pathname);
     const moduleKey = navItem?.path.replace('/', '') || 'dashboard';
+    
+    // Default to true if not defined
     const isModuleActive = settings.moduleStatus[moduleKey] ?? true;
 
     // SuperAdmin can see all modules regardless of active status
@@ -89,6 +92,11 @@ const App: React.FC = () => {
                                 <Route path="/facturation" element={
                                     <ProtectedRoute permission="billing:read">
                                         <BillingPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="/communication" element={
+                                    <ProtectedRoute permission="communication:read">
+                                        <CommunicationPage />
                                     </ProtectedRoute>
                                 } />
                                 <Route path="/maintenance" element={

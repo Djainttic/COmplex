@@ -5,7 +5,7 @@ import { NAV_ITEMS } from '../../constants';
 
 // Filter out items that should not be toggleable modules
 const MODULE_ITEMS = NAV_ITEMS.filter(item => 
-    !['/', '/profil'].includes(item.path)
+    !['/', '/profil', '/parametres'].includes(item.path)
 );
 
 const ModuleSettingsForm: React.FC = () => {
@@ -30,7 +30,7 @@ const ModuleSettingsForm: React.FC = () => {
             <div>
                 <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">Gestion des Modules</h3>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Activez ou désactivez les modules pour contrôler les fonctionnalités accessibles par les utilisateurs.
+                    Activez ou désactivez les modules pour contrôler les fonctionnalités accessibles par les autres utilisateurs (hors Super Admin).
                 </p>
             </div>
             

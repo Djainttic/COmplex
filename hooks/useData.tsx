@@ -1,8 +1,29 @@
 // hooks/useData.tsx
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, BungalowStatus } from '../types';
+import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, BungalowStatus, CommunicationLog } from '../types';
 import { MOCK_BUNGALOWS, MOCK_CLIENTS, MOCK_RESERVATIONS, MOCK_INVOICES, MOCK_MAINTENANCE_REQUESTS } from '../constants';
 import { useAuth } from './useAuth';
+
+const MOCK_COMMUNICATION_LOGS: CommunicationLog[] = [
+    {
+        id: 'comm-1',
+        recipients: ['client-1', 'client-2'],
+        subject: 'Offre Spéciale Week-end',
+        body: 'Profitez de 20% de réduction sur tous nos bungalows ce week-end ! Réservez dès maintenant.',
+        sentDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'Envoyé',
+        sentBy: 'user-manager',
+    },
+    {
+        id: 'comm-2',
+        recipients: ['client-3'],
+        subject: 'Rappel de Maintenance',
+        body: 'Bonjour, une maintenance est prévue dans votre zone demain matin. Merci de votre compréhension.',
+        sentDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'Envoyé',
+        sentBy: 'user-admin',
+    },
+];
 
 interface DataContextType {
     bungalows: Bungalow[];
@@ -27,6 +48,9 @@ interface DataContextType {
     updateMaintenanceRequest: (req: MaintenanceRequest) => void;
     addMaintenanceRequest: (req: MaintenanceRequest) => void;
     deleteMaintenanceRequest: (reqId: string) => void;
+
+    communicationLogs: CommunicationLog[];
+    addCommunicationLog: (log: CommunicationLog) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -38,6 +62,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [reservations, setReservations] = useState<Reservation[]>(MOCK_RESERVATIONS);
     const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES);
     const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>(MOCK_MAINTENANCE_REQUESTS);
+    const [communicationLogs, setCommunicationLogs] = useState<CommunicationLog[]>(MOCK_COMMUNICATION_LOGS);
 
     // Automation effect for bungalow status
     useEffect(() => {
@@ -91,12 +116,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const addMaintenanceRequest = (req: MaintenanceRequest) => setMaintenanceRequests(prev => [req, ...prev]);
     const deleteMaintenanceRequest = (reqId: string) => setMaintenanceRequests(prev => prev.filter(r => r.id !== reqId));
 
+    // Communication
+    const addCommunicationLog = (log: CommunicationLog) => setCommunicationLogs(prev => [log, ...prev]);
+
     const value: DataContextType = {
         bungalows, updateBungalow, addBungalow, deleteBungalow,
         clients, updateClient, addClient, deleteClient,
         reservations, updateReservation, addReservation,
         invoices, updateInvoice, addInvoices,
-        maintenanceRequests, updateMaintenanceRequest, addMaintenanceRequest, deleteMaintenanceRequest
+        maintenanceRequests, updateMaintenanceRequest, addMaintenanceRequest, deleteMaintenanceRequest,
+        communicationLogs, addCommunicationLog,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

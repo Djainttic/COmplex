@@ -5,13 +5,16 @@ import UserTable from '../users/UserTable';
 import UserFormModal from '../users/UserFormModal';
 import AuditLogModal from '../users/AuditLogModal';
 import Button from '../ui/Button';
+import { getVisibleUsers } from '../../constants';
 
 const UsersPage: React.FC = () => {
-    const { hasPermission, allUsers, updateUser } = useAuth();
+    const { currentUser, hasPermission, allUsers, updateUser } = useAuth();
     // Local state for modals
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isAuditModalOpen, setAuditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+    const visibleUsers = getVisibleUsers(currentUser, allUsers);
 
     const handleAddUser = () => {
         setSelectedUser(null);
@@ -67,7 +70,7 @@ const UsersPage: React.FC = () => {
             </div>
             
             <UserTable 
-                users={allUsers}
+                users={visibleUsers}
                 onEdit={handleEditUser}
                 onDelete={handleDeleteUser}
                 onViewAuditLog={handleViewAuditLog}

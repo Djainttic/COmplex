@@ -11,6 +11,7 @@ const ALL_PERMISSIONS: Permission[] = [
     'users:read', 'users:write',
     'settings:read', 'settings:write',
     'billing:read', 'billing:write',
+    'communication:read', 'communication:write',
 ];
 
 const MOCK_ROLES: RoleSetting[] = [
@@ -28,6 +29,7 @@ const MOCK_ROLES: RoleSetting[] = [
             'reports:read': true, 'reports:write': true,
             'users:read': true, 'users:write': true,
             'billing:read': true, 'billing:write': true,
+            'communication:read': true, 'communication:write': true,
             'settings:read': true, 
             'settings:write': false // Admins can see settings but not change them.
         }
@@ -41,6 +43,7 @@ const MOCK_ROLES: RoleSetting[] = [
             'maintenance:read': true, 'maintenance:write': true,
             'reports:read': true, 'reports:write': false,
             'billing:read': true, 'billing:write': true,
+            'communication:read': true, 'communication:write': true,
             'users:read': true, 'users:write': false,
             'settings:read': true, 'settings:write': false,
         }
@@ -54,6 +57,7 @@ const MOCK_ROLES: RoleSetting[] = [
             'maintenance:read': true, 'maintenance:write': false,
             'reports:read': false, 'reports:write': false,
             'billing:read': true, 'billing:write': false,
+            'communication:read': true, 'communication:write': false,
             'users:read': false, 'users:write': false,
             'settings:read': false, 'settings:write': false,
         }
@@ -203,11 +207,12 @@ const MOCK_SETTINGS: Settings = {
         bungalows: true,
         reservations: true,
         clients: true,
-        billing: true,
+        facturation: true,
+        communication: true,
         maintenance: true,
-        reports: true,
-        users: true,
-        settings: true,
+        rapports: true,
+        utilisateurs: true,
+        parametres: true,
     }
 };
 

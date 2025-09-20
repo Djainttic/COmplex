@@ -5,9 +5,10 @@ import { useData } from '../../hooks/useData';
 import MaintenanceTable from '../maintenance/MaintenanceTable';
 import MaintenanceFormModal from '../maintenance/MaintenanceFormModal';
 import Button from '../ui/Button';
+import { getVisibleUsers } from '../../constants';
 
 const MaintenancePage: React.FC = () => {
-    const { hasPermission, allUsers } = useAuth();
+    const { currentUser, hasPermission, allUsers } = useAuth();
     const { 
         maintenanceRequests, addMaintenanceRequest, 
         updateMaintenanceRequest, deleteMaintenanceRequest, 
@@ -17,6 +18,7 @@ const MaintenancePage: React.FC = () => {
     const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null);
     
     const canWrite = hasPermission('maintenance:write');
+    const assignableUsers = getVisibleUsers(currentUser, allUsers);
 
     const bungalowMap = useMemo(() => new Map(bungalows.map(b => [b.id, b.name])), [bungalows]);
     const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.name])), [allUsers]);
@@ -83,7 +85,7 @@ const MaintenancePage: React.FC = () => {
                     onSave={handleSaveRequest}
                     request={selectedRequest}
                     bungalows={bungalows}
-                    users={allUsers}
+                    users={assignableUsers}
                 />
             )}
         </div>
