@@ -4,6 +4,36 @@ import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, BungalowSta
 import { MOCK_BUNGALOWS, MOCK_CLIENTS, MOCK_RESERVATIONS, MOCK_INVOICES, MOCK_MAINTENANCE_REQUESTS, MOCK_LOYALTY_LOGS } from '../constants';
 import { useAuth } from './useAuth';
 
+// Helper hook to sync state with localStorage
+function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+    const [storedValue, setStoredValue] = useState<T>(() => {
+        try {
+            const item = window.localStorage.getItem(key);
+            // Parse stored json or if none return initialValue
+            return item ? JSON.parse(item) : initialValue;
+        } catch (error) {
+            // If error also return initialValue
+            console.error(`Error reading localStorage key “${key}”:`, error);
+            return initialValue;
+        }
+    });
+
+    const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
+        try {
+            // Allow value to be a function so we have same API as useState
+            const valueToStore = value instanceof Function ? value(storedValue) : value;
+            // Save state
+            setStoredValue(valueToStore);
+            // Save to local storage
+            window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        } catch (error) {
+            console.error(`Error setting localStorage key “${key}”:`, error);
+        }
+    };
+    return [storedValue, setValue];
+}
+
+
 const MOCK_COMMUNICATION_LOGS: CommunicationLog[] = [
     {
         id: 'comm-1',
@@ -62,13 +92,14 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { settings } = useAuth(); // Access settings for automation rules
-    const [bungalows, setBungalows] = useState<Bungalow[]>(MOCK_BUNGALOWS);
-    const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS);
-    const [reservations, setReservations] = useState<Reservation[]>(MOCK_RESERVATIONS);
-    const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES);
-    const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>(MOCK_MAINTENANCE_REQUESTS);
-    const [communicationLogs, setCommunicationLogs] = useState<CommunicationLog[]>(MOCK_COMMUNICATION_LOGS);
-    const [loyaltyLogs, setLoyaltyLogs] = useState<LoyaltyLog[]>(MOCK_LOYALTY_LOGS);
+    
+    const [bungalows, setBungalows] = useLocalStorage<Bungalow[]>('bungalows_data', MOCK_BUNGALOWS);
+    const [clients, setClients] = useLocalStorage<Client[]>('clients_data', MOCK_CLIENTS);
+    const [reservations, setReservations] = useLocalStorage<Reservation[]>('reservations_data', MOCK_RESERVATIONS);
+    const [invoices, setInvoices] = useLocalStorage<Invoice[]>('invoices_data', MOCK_INVOICES);
+    const [maintenanceRequests, setMaintenanceRequests] = useLocalStorage<MaintenanceRequest[]>('maintenance_data', MOCK_MAINTENANCE_REQUESTS);
+    const [communicationLogs, setCommunicationLogs] = useLocalStorage<CommunicationLog[]>('communication_data', MOCK_COMMUNICATION_LOGS);
+    const [loyaltyLogs, setLoyaltyLogs] = useLocalStorage<LoyaltyLog[]>('loyalty_logs_data', MOCK_LOYALTY_LOGS);
 
     // Automation effect for bungalow status
     useEffect(() => {

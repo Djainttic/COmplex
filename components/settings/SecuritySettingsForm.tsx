@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { SecuritySettings } from '../../types';
+// FIX: Import PasswordPolicy type to use it for stronger type safety.
+import { SecuritySettings, PasswordPolicy } from '../../types';
 import Button from '../ui/Button';
 import { formatTimeAgo } from '../../constants';
 
@@ -74,7 +75,7 @@ const SecuritySettingsForm: React.FC = () => {
                     </div>
                     <div className="sm:col-span-4 self-end">
                         <div className="grid grid-cols-2 gap-4">
-                            {(Object.keys(formData.passwordPolicy) as Array<keyof typeof formData.passwordPolicy>)
+                            {(Object.keys(formData.passwordPolicy) as Array<keyof PasswordPolicy>)
                                 .filter(key => key !== 'minLength').map(key => {
                                     const labels: { [key: string]: string } = {
                                         requireUppercase: 'Majuscule (A-Z)',
@@ -85,8 +86,9 @@ const SecuritySettingsForm: React.FC = () => {
                                     return (
                                         <div key={key} className="relative flex items-start">
                                             <div className="flex items-center h-5">
+                                                {/* FIX: Use a more specific type assertion on the key to prevent 'symbol' index error. */}
                                                 <input id={key} name={key} type="checkbox"
-                                                    checked={formData.passwordPolicy[key as keyof typeof formData.passwordPolicy] as boolean}
+                                                    checked={formData.passwordPolicy[key as keyof Omit<PasswordPolicy, 'minLength'>]}
                                                     onChange={handlePolicyChange} disabled={!canWrite}
                                                     className="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50" />
                                             </div>

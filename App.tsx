@@ -21,7 +21,8 @@ import LoginPage from './components/pages/LoginPage';
 import LoyaltyPage from './components/pages/LoyaltyPage';
 import { NAV_ITEMS } from './constants';
 
-const ProtectedRoute: React.FC<{ permission?: Permission | Permission[], children: JSX.Element }> = ({ permission, children }) => {
+// FIX: Changed children type from JSX.Element to React.ReactElement to resolve "Cannot find namespace 'JSX'" error.
+const ProtectedRoute: React.FC<{ permission?: Permission | Permission[], children: React.ReactElement }> = ({ permission, children }) => {
     const { hasPermission, settings, currentUser } = useAuth();
     const location = useLocation();
 
