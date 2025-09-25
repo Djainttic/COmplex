@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { User, Settings, UserRole, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType } from '../types';
+import { User, Settings, UserRole, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType, UserStatus } from '../types';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 
@@ -54,7 +54,7 @@ interface AuthContextType {
     login: (email: string, pass: string) => Promise<{ success: boolean; error: string | null }>;
     logout: () => void;
     updateUser: (user: User) => Promise<void>;
-    addUser: (userData: Partial<User>) => Promise<User | null>;
+    addUser: (userData: Partial<User>, temporaryPassword: string) => Promise<User | null>;
     deleteUser: (userId: string) => Promise<void>;
     hasPermission: (permission: Permission | Permission[]) => boolean;
     settings: Settings;
@@ -73,6 +73,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         const fetchInitialData = async (session: Session | null) => {
             try {
+                // Fetch settings first
+                const { data: settingsData, error: settingsError } = await supabase
+                    .from('settings')
+                    .select('data')
+                    .eq('id', 1)
+                    .single();
+
+                if (settingsError) {
+                    console.error("Error fetching settings, using defaults:", settingsError);
+                } else if (settingsData) {
+                    setSettings(settingsData.data);
+                }
+
+
                 if (session) {
                     // Fetch current user's profile
                     const { data: profile, error: profileError } = await supabase
@@ -164,24 +178,117 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const updateUser = async (user: User) => {
-        // Implementation for updating user profile in Supabase
+        const profileData = {
+            name: user.name,
+            phone: user.phone,
+            role: user.role,
+            status: user.status,
+            avatar_url: user.avatarUrl,
+        };
+
+        const { error } = await supabase
+            .from('profiles')
+            .update(profileData)
+            .eq('id', user.id);
+        
+        if (error) {
+            console.error("Error updating user profile:", error);
+            alert("Erreur lors de la mise à jour du profil.");
+            return;
+        }
+        
+        // Update state optimistically
+        setAllUsers(prev => prev.map(u => u.id === user.id ? user : u));
+        if (currentUser?.id === user.id) {
+            setCurrentUser(user);
+        }
     };
     
-    const addUser = async (userData: Partial<User>): Promise<User | null> => {
-       // IMPORTANT: In a real app, creating an auth user (supabase.auth.signUp)
-       // should be done in a secure Supabase Edge Function to avoid exposing service keys.
-       // This implementation only creates the profile, assuming the auth user is created separately.
-       console.warn("User creation only adds a profile. Auth user creation should be handled server-side.");
-       return null;
+    const addUser = async (userData: Partial<User>, temporaryPassword: string): Promise<User | null> => {
+        if (!userData.email || !userData.name) {
+            console.error("Email and name are required to create a user.");
+            return null;
+        }
+
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: userData.email,
+            password: temporaryPassword,
+        });
+
+        if (authError || !authData.user) {
+            console.error("Error creating auth user:", authError);
+            alert(`Erreur lors de la création de l'utilisateur : ${authError?.message}`);
+            return null;
+        }
+
+        const profileData = {
+            id: authData.user.id,
+            name: userData.name,
+            email: userData.email,
+            phone: userData.phone,
+            role: userData.role || UserRole.Employee,
+            status: userData.status || UserStatus.Active,
+            avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(userData.name)}`,
+        };
+
+        const { data: newProfile, error: profileError } = await supabase
+            .from('profiles')
+            .insert(profileData)
+            .select()
+            .single();
+        
+        if (profileError) {
+            console.error("Error creating user profile:", profileError);
+            alert(`Erreur lors de la création du profil utilisateur.`);
+            return null;
+        }
+        
+        const newUser: User = {
+            id: newProfile.id,
+            name: newProfile.name,
+            email: newProfile.email,
+            phone: newProfile.phone,
+            role: newProfile.role,
+            status: newProfile.status,
+            avatarUrl: newProfile.avatar_url,
+            isOnline: false,
+            lastLogin: newProfile.last_login,
+            permissions: [],
+        };
+
+        setAllUsers(prev => [...prev, newUser]);
+        return newUser;
     };
 
     const deleteUser = async (userId: string) => {
-        // IMPORTANT: Like user creation, deleting an auth user requires admin privileges
-        // and should be handled in a Supabase Edge Function.
+        console.warn(`Deleting profile for user ${userId}. Auth user may remain if not handled by a server-side function.`);
+        
+        const { error } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', userId);
+
+        if (error) {
+            console.error("Error deleting user profile:", error);
+            alert("Erreur lors de la suppression du profil.");
+            return;
+        }
+        
+        setAllUsers(prev => prev.filter(u => u.id !== userId));
     };
 
     const updateSettings = async (newSettings: Settings) => {
-        // Implementation for updating settings in Supabase
+        setSettings(newSettings); 
+        
+        const { error } = await supabase
+            .from('settings')
+            .update({ data: newSettings })
+            .eq('id', 1);
+
+        if (error) {
+            console.error("Error updating settings:", error);
+            alert("Erreur lors de la sauvegarde des paramètres. Les modifications pourraient ne pas être conservées.");
+        }
     };
 
     const hasPermission = useMemo(() => (requiredPermission: Permission | Permission[]): boolean => {

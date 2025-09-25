@@ -56,17 +56,11 @@ const UsersPage: React.FC = () => {
             await updateUser(userToSave as User);
         } else { // Adding new user
             const temporaryPassword = generateTempPassword();
-            // In a real app, this password would be used in a server-side function
-            // to create the user in Supabase Auth.
-            console.log(`Generated temporary password for ${userToSave.email}: ${temporaryPassword}`);
-            
-            const newUser = await addUser(userToSave);
+            const newUser = await addUser(userToSave, temporaryPassword);
 
             if (newUser) {
                 setNewUserCredentials({ email: newUser.email, temporaryPassword });
                 setSuccessModalOpen(true);
-            } else {
-                alert("Erreur lors de la création de l'utilisateur. L'authentification doit être gérée côté serveur (Edge Function).");
             }
         }
         setFormModalOpen(false);
