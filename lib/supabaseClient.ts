@@ -1,5 +1,5 @@
 // lib/supabaseClient.ts
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'https://aistudiocdn.com/@supabase/supabase-js@^2.44.4';
 
 // The development environment does not support environment variables (import.meta.env).
 // To ensure the application can connect, we are hardcoding the keys directly.
