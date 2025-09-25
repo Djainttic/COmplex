@@ -44,6 +44,11 @@ const NavItemLink: React.FC<{ item: NavItem }> = ({ item }) => {
 const SidebarContent: React.FC = () => {
     const { hasPermission, settings, currentUser } = useAuth();
 
+    // CRITICAL FIX: Prevent rendering if currentUser is not yet available.
+    if (!currentUser) {
+        return null;
+    }
+
     const visibleNavItems = NAV_ITEMS.filter(item => {
         // SuperAdmin sees all modules regardless of their status
         if (currentUser?.role === UserRole.SuperAdmin) {

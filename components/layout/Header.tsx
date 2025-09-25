@@ -17,6 +17,11 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     const userDropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
 
+    // CRITICAL FIX: Prevent rendering if currentUser is not yet available to avoid errors.
+    if (!currentUser) {
+        return null;
+    }
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
