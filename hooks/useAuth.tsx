@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User, Settings, UserRole, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType, UserStatus } from '../types';
-import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import type { Session } from 'https://aistudiocdn.com/@supabase/supabase-js@^2.44.4';
 
 
 const DEFAULT_SETTINGS: Settings = {
