@@ -62,6 +62,8 @@ interface AuthContextType {
     settings: Settings;
     updateSettings: (newSettings: Settings) => Promise<void>;
     sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; error: string | null }>;
+    isPasswordRecovery: boolean;
+    updatePassword: (newPassword: string) => Promise<{ success: boolean; error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,6 +89,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
+    const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
     useEffect(() => {
         const fetchInitialData = async (session: Session | null) => {
@@ -155,6 +158,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
 
         const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (_event === 'PASSWORD_RECOVERY') {
+                setIsPasswordRecovery(true);
+            }
             setSession(session);
             setLoading(true);
             fetchInitialData(session);
@@ -217,6 +223,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const logout = async () => {
         await supabase.auth.signOut();
         setCurrentUser(null);
+        setIsPasswordRecovery(false); // Reset on logout
     };
 
     const sendPasswordResetEmail = async (email: string) => {
@@ -229,6 +236,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // Don't expose detailed errors to the user for security (e.g., "User not found")
             return { success: false, error: "Une erreur est survenue. Veuillez vérifier l'adresse e-mail et réessayer." };
         }
+        return { success: true, error: null };
+    };
+    
+    const updatePassword = async (newPassword: string) => {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) {
+            console.error("Error updating password:", error);
+            return { success: false, error: "Erreur lors de la mise à jour du mot de passe." };
+        }
+        setIsPasswordRecovery(false);
         return { success: true, error: null };
     };
 
@@ -350,6 +367,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         settings,
         updateSettings,
         sendPasswordResetEmail,
+        isPasswordRecovery,
+        updatePassword,
     };
 
     return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
