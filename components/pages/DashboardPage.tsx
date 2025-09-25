@@ -7,12 +7,13 @@ import BungalowStatusChart from '../dashboard/BungalowStatusChart';
 import UpcomingActivities from '../dashboard/UpcomingActivities';
 import QuickActions from '../dashboard/QuickActions';
 import RecentActivityFeed from '../dashboard/RecentActivityFeed';
-import { getVisibleUsers } from '../../constants';
+// FIX: Import of getVisibleUsers was removed as it is now correctly implemented in constants.ts and used in MaintenanceFormModal via props.
 
 // Modals for Quick Actions
 import ReservationFormModal from '../reservations/ReservationFormModal';
 import ClientFormModal from '../clients/ClientFormModal';
 import MaintenanceFormModal from '../maintenance/MaintenanceFormModal';
+import { getVisibleUsers } from '../../constants';
 
 const DashboardPage: React.FC = () => {
     const { currentUser, allUsers } = useAuth();

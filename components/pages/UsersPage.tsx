@@ -22,6 +22,7 @@ const UsersPage: React.FC = () => {
     const canWrite = hasPermission('users:write');
 
     const visibleUsers = useMemo(() => {
+        // FIX: Replaced inline filtering logic with the centralized getVisibleUsers helper function.
         return getVisibleUsers(currentUser, allUsers);
     }, [currentUser, allUsers]);
 
@@ -40,9 +41,9 @@ const UsersPage: React.FC = () => {
         setConfirmModalOpen(true);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (userToDelete) {
-            deleteUser(userToDelete.id);
+            await deleteUser(userToDelete.id);
         }
         setConfirmModalOpen(false);
         setUserToDelete(null);
@@ -50,23 +51,23 @@ const UsersPage: React.FC = () => {
     
     const generateTempPassword = () => `pass_${Math.random().toString(36).substring(2, 10)}`;
 
-    const handleSaveUser = (userToSave: User) => {
+    const handleSaveUser = async (userToSave: Partial<User>) => {
         if (userToSave.id) { // Editing existing user
-            updateUser(userToSave);
+            await updateUser(userToSave as User);
         } else { // Adding new user
             const temporaryPassword = generateTempPassword();
-            const newUser: User = {
-                ...userToSave,
-                id: `user-${Date.now()}`,
-                avatarUrl: `https://i.pravatar.cc/150?u=${userToSave.email}`,
-                lastLogin: new Date().toISOString(),
-                isOnline: false,
-                permissions: [],
-                status: UserStatus.PendingActivation,
-            };
-            addUser(newUser);
-            setNewUserCredentials({ email: newUser.email, temporaryPassword });
-            setSuccessModalOpen(true);
+            // In a real app, this password would be used in a server-side function
+            // to create the user in Supabase Auth.
+            console.log(`Generated temporary password for ${userToSave.email}: ${temporaryPassword}`);
+            
+            const newUser = await addUser(userToSave);
+
+            if (newUser) {
+                setNewUserCredentials({ email: newUser.email, temporaryPassword });
+                setSuccessModalOpen(true);
+            } else {
+                alert("Erreur lors de la création de l'utilisateur. L'authentification doit être gérée côté serveur (Edge Function).");
+            }
         }
         setFormModalOpen(false);
         setSelectedUser(null);

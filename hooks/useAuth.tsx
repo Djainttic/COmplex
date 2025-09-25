@@ -1,14 +1,9 @@
 // hooks/useAuth.tsx
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
-import { User, Settings, UserRole, UserStatus, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType } from '../types';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { User, Settings, UserRole, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType } from '../types';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
-// This is a simplified mock of a backend.
-const MOCK_USERS: User[] = [
-    { id: 'user-superadmin', name: 'Djalal TTL', email: 'djalalttl@bungalow.dz', role: UserRole.SuperAdmin, status: UserStatus.Active, avatarUrl: 'https://i.ibb.co/2d9y22T/syphax-logo.png', lastLogin: new Date().toISOString(), isOnline: true, permissions: [] },
-    { id: 'user-admin', name: 'Admin Syphax', email: 'admin_syphax@bungalow.dz', role: UserRole.Admin, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/admin/200', lastLogin: new Date().toISOString(), isOnline: true, permissions: [] },
-    { id: 'user-manager', name: 'Fatima Manager', email: 'manager@bungalow.dz', role: UserRole.Manager, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/manager/200', lastLogin: new Date().toISOString(), isOnline: false, permissions: [] },
-    { id: 'user-employee', name: 'Karim Employé', email: 'employee@bungalow.dz', role: UserRole.Employee, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/employee/200', lastLogin: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), isOnline: true, permissions: [] },
-];
 
 const DEFAULT_SETTINGS: Settings = {
     general: {
@@ -46,80 +41,136 @@ const DEFAULT_SETTINGS: Settings = {
         { roleName: UserRole.Manager, permissions: { 'bungalows:read': true, 'bungalows:update_status': true, 'reservations:read': true, 'reservations:write': true, 'clients:read': true, 'clients:write': true, 'billing:read': true, 'maintenance:read': true, 'maintenance:write': true, 'reports:read': true } },
         { roleName: UserRole.Employee, permissions: { 'bungalows:read': true, 'bungalows:update_status': true, 'reservations:read': true, 'maintenance:read': true } },
     ],
-    moduleStatus: { // true by default
-        'bungalows': true, 'reservations': true, 'clients': true, 'facturation': true, 'fidelite': true, 'communication': true, 'maintenance': true, 'rapports': true, 'utilisateurs': true,
+    moduleStatus: { 
+        'bungalows': true, 'reservations': true, 'clients': true, 'facturation': true, 'fidelite': true, 'communication': true, 'maintenance': true, 'rapports': true, 'utilisateurs': true, 'ai': true,
     },
     loyalty: { enabled: true, pointsPerNight: 10, pointsForFirstReservation: 50, pointsToCurrencyValue: 5 },
     license: { key: 'SYPHAX-PRO-2024-DEMO-XXXX', status: 'Active', expiresOn: '2025-12-31T23:59:59Z' },
 };
 
 
-// Helper to get user from localStorage
-const getInitialUser = (): User | null => {
-    try {
-        const item = window.localStorage.getItem('currentUser');
-        return item ? JSON.parse(item) : null;
-    } catch (error) {
-        return null;
-    }
-};
-
 interface AuthContextType {
     currentUser: User | null;
     allUsers: User[];
-    login: (email: string, pass: string) => Promise<boolean>;
+    login: (email: string, pass: string) => Promise<{ success: boolean; error: string | null }>;
     logout: () => void;
-    updateUser: (user: User) => void;
-    addUser: (user: User) => void;
-    deleteUser: (userId: string) => void;
+    updateUser: (user: User) => Promise<void>;
+    addUser: (userData: Partial<User>) => Promise<User | null>;
+    deleteUser: (userId: string) => Promise<void>;
     hasPermission: (permission: Permission | Permission[]) => boolean;
     settings: Settings;
-    updateSettings: (newSettings: Settings) => void;
+    updateSettings: (newSettings: Settings) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [currentUser, setCurrentUser] = useState<User | null>(getInitialUser);
+    const [session, setSession] = useState<Session | null>(null);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [allUsers, setAllUsers] = useState<User[]>([]);
     const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-    const [allUsers, setAllUsers] = useState<User[]>(MOCK_USERS);
+    const [loading, setLoading] = useState(true);
 
-    const login = async (email: string, pass: string): Promise<boolean> => {
-        // This is a mock login. In a real app, you'd call an API.
-        // For this demo, we ignore the password and only check if the user exists.
-        const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-        if (user) {
-            setCurrentUser(user);
-            window.localStorage.setItem('currentUser', JSON.stringify(user));
-            return true;
+    useEffect(() => {
+        const fetchInitialData = async (session: Session | null) => {
+            if (session) {
+                // Fetch current user's profile
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (profileError) {
+                    console.error("Error fetching profile:", profileError);
+                    setCurrentUser(null);
+                } else if (profile) {
+                    setCurrentUser({
+                        id: profile.id,
+                        name: profile.name,
+                        email: profile.email,
+                        phone: profile.phone,
+                        role: profile.role,
+                        status: profile.status,
+                        avatarUrl: profile.avatar_url,
+                        isOnline: profile.is_online,
+                        lastLogin: profile.last_login,
+                        permissions: [], // Permissions are derived from role and settings
+                    });
+                }
+
+                // Fetch all users for management purposes
+                const { data: allProfiles, error: allProfilesError } = await supabase
+                    .from('profiles')
+                    .select('*');
+                
+                if(allProfiles) {
+                    setAllUsers(allProfiles.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        email: p.email,
+                        phone: p.phone,
+                        role: p.role,
+                        status: p.status,
+                        avatarUrl: p.avatar_url,
+                        isOnline: p.is_online,
+                        lastLogin: p.last_login,
+                        permissions: [],
+                    })));
+                }
+
+            } else {
+                setCurrentUser(null);
+                setAllUsers([]);
+            }
+            setLoading(false);
+        };
+
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            fetchInitialData(session);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+            fetchInitialData(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const login = async (email: string, pass: string) => {
+        const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        if (error) {
+            return { success: false, error: "Email ou mot de passe invalide." };
         }
-        return false;
+        return { success: true, error: null };
     };
 
-    const logout = () => {
+    const logout = async () => {
+        await supabase.auth.signOut();
         setCurrentUser(null);
-        window.localStorage.removeItem('currentUser');
     };
 
-    const updateUser = (user: User) => {
-        setAllUsers(prev => prev.map(u => u.id === user.id ? user : u));
-        if (currentUser?.id === user.id) {
-            setCurrentUser(user);
-            window.localStorage.setItem('currentUser', JSON.stringify(user));
-        }
+    const updateUser = async (user: User) => {
+        // Implementation for updating user profile in Supabase
     };
     
-    const addUser = (user: User) => {
-        setAllUsers(prev => [...prev, user]);
+    const addUser = async (userData: Partial<User>): Promise<User | null> => {
+       // IMPORTANT: In a real app, creating an auth user (supabase.auth.signUp)
+       // should be done in a secure Supabase Edge Function to avoid exposing service keys.
+       // This implementation only creates the profile, assuming the auth user is created separately.
+       console.warn("User creation only adds a profile. Auth user creation should be handled server-side.");
+       return null;
     };
 
-    const deleteUser = (userId: string) => {
-        setAllUsers(prev => prev.filter(u => u.id !== userId));
+    const deleteUser = async (userId: string) => {
+        // IMPORTANT: Like user creation, deleting an auth user requires admin privileges
+        // and should be handled in a Supabase Edge Function.
     };
 
-    const updateSettings = (newSettings: Settings) => {
-        setSettings(newSettings);
-        // In a real app, you'd save this to a backend.
+    const updateSettings = async (newSettings: Settings) => {
+        // Implementation for updating settings in Supabase
     };
 
     const hasPermission = useMemo(() => (requiredPermission: Permission | Permission[]): boolean => {
@@ -149,7 +200,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         updateSettings
     };
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {

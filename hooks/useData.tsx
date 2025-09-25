@@ -1,134 +1,104 @@
 // hooks/useData.tsx
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, BungalowStatus, CommunicationLog, LoyaltyLog, ReservationStatus } from '../types';
-import { MOCK_BUNGALOWS, MOCK_CLIENTS, MOCK_RESERVATIONS, MOCK_INVOICES, MOCK_MAINTENANCE_REQUESTS, MOCK_LOYALTY_LOGS } from '../constants';
-import { useAuth } from './useAuth';
-
-// Helper hook to sync state with localStorage
-function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-    const [storedValue, setStoredValue] = useState<T>(() => {
-        try {
-            const item = window.localStorage.getItem(key);
-            // Parse stored json or if none return initialValue
-            return item ? JSON.parse(item) : initialValue;
-        } catch (error) {
-            // If error also return initialValue
-            console.error(`Error reading localStorage key “${key}”:`, error);
-            return initialValue;
-        }
-    });
-
-    const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
-        try {
-            // Allow value to be a function so we have same API as useState
-            const valueToStore = value instanceof Function ? value(storedValue) : value;
-            // Save state
-            setStoredValue(valueToStore);
-            // Save to local storage
-            window.localStorage.setItem(key, JSON.stringify(valueToStore));
-        } catch (error) {
-            console.error(`Error setting localStorage key “${key}”:`, error);
-        }
-    };
-    return [storedValue, setValue];
-}
-
-
-const MOCK_COMMUNICATION_LOGS: CommunicationLog[] = [
-    {
-        id: 'comm-1',
-        recipients: ['client-1', 'client-2'],
-        subject: 'Offre Spéciale Week-end',
-        body: 'Profitez de 20% de réduction sur tous nos bungalows ce week-end ! Réservez dès maintenant.',
-        sentDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'Envoyé',
-        sentBy: 'user-manager',
-    },
-    {
-        id: 'comm-2',
-        recipients: ['client-3'],
-        subject: 'Rappel de Maintenance',
-        body: 'Bonjour, une maintenance est prévue dans votre zone demain matin. Merci de votre compréhension.',
-        sentDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'Envoyé',
-        sentBy: 'user-admin',
-    },
-];
+import { supabase } from '../lib/supabaseClient';
+import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, CommunicationLog, LoyaltyLog, ReservationStatus, BungalowStatus } from '../types';
 
 interface DataContextType {
     bungalows: Bungalow[];
-    updateBungalow: (bungalow: Bungalow) => void;
-    addBungalow: (bungalow: Bungalow) => void;
-    deleteBungalow: (bungalowId: string) => void;
+    updateBungalow: (bungalow: Partial<Bungalow>) => Promise<any>;
+    addBungalow: (bungalow: Partial<Bungalow>) => Promise<any>;
+    deleteBungalow: (bungalowId: string) => Promise<any>;
     
     clients: Client[];
-    updateClient: (client: Client) => void;
-    addClient: (client: Client) => void;
-    deleteClient: (clientId: string) => void;
+    updateClient: (client: Partial<Client>) => Promise<any>;
+    addClient: (client: Partial<Client>) => Promise<any>;
+    deleteClient: (clientId: string) => Promise<any>;
 
     reservations: Reservation[];
-    updateReservation: (res: Reservation) => Promise<boolean>;
-    addReservation: (res: Reservation) => Promise<boolean>;
+    updateReservation: (res: Partial<Reservation>) => Promise<{success: boolean}>;
+    addReservation: (res: Partial<Reservation>) => Promise<{success: boolean}>;
 
     invoices: Invoice[];
-    updateInvoice: (inv: Invoice) => void;
-    addInvoice: (inv: Invoice) => void;
-    addInvoices: (invs: Invoice[]) => void;
-    deleteInvoice: (invoiceId: string) => void;
+    updateInvoice: (inv: Partial<Invoice>) => Promise<any>;
+    addInvoice: (inv: Partial<Invoice>) => Promise<any>;
+    addInvoices: (invs: Partial<Invoice>[]) => Promise<any>;
+    deleteInvoice: (invoiceId: string) => Promise<any>;
     
     maintenanceRequests: MaintenanceRequest[];
-    updateMaintenanceRequest: (req: MaintenanceRequest) => void;
-    addMaintenanceRequest: (req: MaintenanceRequest) => void;
-    deleteMaintenanceRequest: (reqId: string) => void;
+    updateMaintenanceRequest: (req: Partial<MaintenanceRequest>) => Promise<any>;
+    addMaintenanceRequest: (req: Partial<MaintenanceRequest>) => Promise<any>;
+    deleteMaintenanceRequest: (reqId: string) => Promise<any>;
 
     communicationLogs: CommunicationLog[];
-    addCommunicationLog: (log: CommunicationLog) => void;
+    addCommunicationLog: (log: Partial<CommunicationLog>) => Promise<any>;
     
     loyaltyLogs: LoyaltyLog[];
-    addLoyaltyLog: (log: LoyaltyLog) => void;
+    addLoyaltyLog: (log: Partial<LoyaltyLog>) => Promise<any>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { settings } = useAuth(); // Access settings for automation rules
     
-    const [bungalows, setBungalows] = useLocalStorage<Bungalow[]>('bungalows_data', MOCK_BUNGALOWS);
-    const [clients, setClients] = useLocalStorage<Client[]>('clients_data', MOCK_CLIENTS);
-    const [reservations, setReservations] = useLocalStorage<Reservation[]>('reservations_data', MOCK_RESERVATIONS);
-    const [invoices, setInvoices] = useLocalStorage<Invoice[]>('invoices_data', MOCK_INVOICES);
-    const [maintenanceRequests, setMaintenanceRequests] = useLocalStorage<MaintenanceRequest[]>('maintenance_data', MOCK_MAINTENANCE_REQUESTS);
-    const [communicationLogs, setCommunicationLogs] = useLocalStorage<CommunicationLog[]>('communication_data', MOCK_COMMUNICATION_LOGS);
-    const [loyaltyLogs, setLoyaltyLogs] = useLocalStorage<LoyaltyLog[]>('loyalty_logs_data', MOCK_LOYALTY_LOGS);
-
-    // Automation effect for bungalow status
+    const [bungalows, setBungalows] = useState<Bungalow[]>([]);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [reservations, setReservations] = useState<Reservation[]>([]);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>([]);
+    const [communicationLogs, setCommunicationLogs] = useState<CommunicationLog[]>([]);
+    const [loyaltyLogs, setLoyaltyLogs] = useState<LoyaltyLog[]>([]);
+    
     useEffect(() => {
-        if (settings.bungalows.automation.enableAutoCleaning) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+        const fetchAllData = async () => {
+            const [
+                { data: bungalowsData }, 
+                { data: clientsData },
+                { data: reservationsData },
+                { data: invoicesData },
+                { data: maintenanceData },
+            ] = await Promise.all([
+                supabase.from('bungalows').select('*'),
+                supabase.from('clients').select('*'),
+                supabase.from('reservations').select('*'),
+                supabase.from('invoices').select('*'),
+                supabase.from('maintenance_requests').select('*'),
+            ]);
 
-            const bungalowUpdates = new Map<string, BungalowStatus>();
+            setBungalows(bungalowsData as Bungalow[] || []);
+            setClients(clientsData as Client[] || []);
+            setReservations(reservationsData as Reservation[] || []);
+            setInvoices(invoicesData as Invoice[] || []);
+            setMaintenanceRequests(maintenanceData as MaintenanceRequest[] || []);
+        };
 
-            reservations.forEach(res => {
-                const endDate = new Date(res.endDate);
-                if (endDate < today) {
-                    const bungalow = bungalows.find(b => b.id === res.bungalowId);
-                    if (bungalow && bungalow.status === BungalowStatus.Occupied) {
-                        bungalowUpdates.set(bungalow.id, BungalowStatus.Cleaning);
-                    }
-                }
-            });
+        fetchAllData();
 
-            if (bungalowUpdates.size > 0) {
-                console.log(`Automation: Updating ${bungalowUpdates.size} bungalows to 'Cleaning' status.`);
-                setBungalows(prev =>
-                    prev.map(b => bungalowUpdates.has(b.id) ? { ...b, status: bungalowUpdates.get(b.id)! } : b)
-                );
-            }
-        }
-    }, [settings.bungalows.automation.enableAutoCleaning]);
+        // Set up real-time subscriptions
+        const channel = supabase.channel('public:all');
+
+        channel
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'bungalows' }, payload => {
+                console.log('Bungalow change received!', payload);
+                fetchAllData(); // Refetch all for simplicity, can be optimized
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, payload => {
+                 console.log('Reservation change received!', payload);
+                 fetchAllData();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, payload => {
+                 console.log('Client change received!', payload);
+                 fetchAllData();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
     
     const isBungalowAvailable = (bungalowId: string, startDate: string, endDate: string, currentReservationId: string | null): boolean => {
+        // This check should ideally be a database function for atomicity,
+        // but a client-side check is good for immediate user feedback.
         const newStart = new Date(startDate).getTime();
         const newEnd = new Date(endDate).getTime();
 
@@ -138,88 +108,56 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             const existingStart = new Date(res.startDate).getTime();
             const existingEnd = new Date(res.endDate).getTime();
-            
-            // Check for overlap: (StartA < EndB) and (EndA > StartB)
             return newStart < existingEnd && newEnd > existingStart;
         });
 
         return !conflictingReservation;
     };
 
-    // Bungalows
-    const updateBungalow = (bungalow: Bungalow) => setBungalows(prev => prev.map(b => b.id === bungalow.id ? bungalow : b));
-    const addBungalow = (bungalow: Bungalow) => setBungalows(prev => [bungalow, ...prev]);
-    const deleteBungalow = (bungalowId: string) => setBungalows(prev => prev.filter(b => b.id !== bungalowId));
 
-    // Clients
-    const updateClient = (client: Client) => setClients(prev => prev.map(c => c.id === client.id ? client : c));
-    const addClient = (client: Client) => setClients(prev => [client, ...prev]);
-    const deleteClient = (clientId: string) => setClients(prev => prev.filter(c => c.id !== clientId));
+    // Generic CRUD operations
+    const createCrudOperations = <T extends {id: string}>(table: string, setData: React.Dispatch<React.SetStateAction<T[]>>) => ({
+        update: (data: Partial<T>) => supabase.from(table).update(data).eq('id', data.id),
+        add: (data: Partial<T>) => supabase.from(table).insert(data as any),
+        delete: (id: string) => supabase.from(table).delete().eq('id', id),
+    });
 
-    // Reservations
-    const updateReservation = async (res: Reservation): Promise<boolean> => {
-        if (!isBungalowAvailable(res.bungalowId, res.startDate, res.endDate, res.id)) {
+    const bungalowOps = createCrudOperations('bungalows', setBungalows);
+    const clientOps = createCrudOperations('clients', setClients);
+    const invoiceOps = createCrudOperations('invoices', setInvoices);
+    const maintenanceOps = createCrudOperations('maintenance_requests', setMaintenanceRequests);
+    const communicationOps = createCrudOperations('communication_logs', setCommunicationLogs);
+    const loyaltyOps = createCrudOperations('loyalty_logs', setLoyaltyLogs);
+
+
+    // Custom reservation logic with conflict check
+    const addReservation = async (res: Partial<Reservation>) => {
+        if (!isBungalowAvailable(res.bungalowId!, res.startDate!, res.endDate!, null)) {
             alert("Erreur : Ce bungalow est déjà réservé pour ces dates.");
-            return false;
+            return { success: false };
         }
-        setReservations(prev => prev.map(r => (r.id === res.id ? res : r)));
-        if(res.status === ReservationStatus.Confirmed) {
-            updateBungalowStatusOnReservation(res.bungalowId, res.startDate, res.endDate);
-        }
-        return true;
+        await supabase.from('reservations').insert(res as any);
+        return { success: true };
     };
 
-    const addReservation = async (res: Reservation): Promise<boolean> => {
-        if (!isBungalowAvailable(res.bungalowId, res.startDate, res.endDate, null)) {
+    const updateReservation = async (res: Partial<Reservation>) => {
+         if (!isBungalowAvailable(res.bungalowId!, res.startDate!, res.endDate!, res.id!)) {
             alert("Erreur : Ce bungalow est déjà réservé pour ces dates.");
-            return false;
+            return { success: false };
         }
-        setReservations(prev => [...prev, res]);
-        if(res.status === ReservationStatus.Confirmed) {
-            updateBungalowStatusOnReservation(res.bungalowId, res.startDate, res.endDate);
-        }
-        return true;
+        await supabase.from('reservations').update(res).eq('id', res.id);
+        return { success: true };
     };
-    
-    const updateBungalowStatusOnReservation = (bungalowId: string, startDate: string, endDate: string) => {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const today = new Date();
-
-        if (today >= start && today < end) {
-            setBungalows(prev => prev.map(b => 
-                b.id === bungalowId ? { ...b, status: BungalowStatus.Occupied } : b
-            ));
-        }
-    };
-
-
-    // Invoices
-    const updateInvoice = (inv: Invoice) => setInvoices(prev => prev.map(i => i.id === inv.id ? inv : i));
-    const addInvoice = (inv: Invoice) => setInvoices(prev => [inv, ...prev]);
-    const addInvoices = (invs: Invoice[]) => setInvoices(prev => [...invs, ...prev]);
-    const deleteInvoice = (invoiceId: string) => setInvoices(prev => prev.filter(i => i.id !== invoiceId));
-
-    // Maintenance
-    const updateMaintenanceRequest = (req: MaintenanceRequest) => setMaintenanceRequests(prev => prev.map(r => r.id === req.id ? req : r));
-    const addMaintenanceRequest = (req: MaintenanceRequest) => setMaintenanceRequests(prev => [req, ...prev]);
-    const deleteMaintenanceRequest = (reqId: string) => setMaintenanceRequests(prev => prev.filter(r => r.id !== reqId));
-
-    // Communication
-    const addCommunicationLog = (log: CommunicationLog) => setCommunicationLogs(prev => [log, ...prev]);
-
-    // Loyalty
-    const addLoyaltyLog = (log: LoyaltyLog) => setLoyaltyLogs(prev => [log, ...prev].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
 
 
     const value: DataContextType = {
-        bungalows, updateBungalow, addBungalow, deleteBungalow,
-        clients, updateClient, addClient, deleteClient,
+        bungalows, updateBungalow: bungalowOps.update, addBungalow: bungalowOps.add, deleteBungalow: bungalowOps.delete,
+        clients, updateClient: clientOps.update, addClient: clientOps.add, deleteClient: clientOps.delete,
         reservations, updateReservation, addReservation,
-        invoices, updateInvoice, addInvoice, addInvoices, deleteInvoice,
-        maintenanceRequests, updateMaintenanceRequest, addMaintenanceRequest, deleteMaintenanceRequest,
-        communicationLogs, addCommunicationLog,
-        loyaltyLogs, addLoyaltyLog,
+        invoices, updateInvoice: invoiceOps.update, addInvoice: invoiceOps.add, addInvoices: (invs) => supabase.from('invoices').insert(invs as any), deleteInvoice: invoiceOps.delete,
+        maintenanceRequests, updateMaintenanceRequest: maintenanceOps.update, addMaintenanceRequest: maintenanceOps.add, deleteMaintenanceRequest: maintenanceOps.delete,
+        communicationLogs, addCommunicationLog: communicationOps.add,
+        loyaltyLogs, addLoyaltyLog: loyaltyOps.add,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

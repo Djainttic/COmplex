@@ -1,3 +1,4 @@
+
 // components/pages/SettingsPage.tsx
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
@@ -10,10 +11,11 @@ import PricingSettingsForm from '../settings/PricingSettingsForm';
 import LoyaltySettingsForm from '../settings/LoyaltySettingsForm';
 import ModuleSettingsForm from '../settings/ModuleSettingsForm';
 import LicenseSettingsForm from '../settings/LicenseSettingsForm';
+import AISettingsForm from '../settings/AISettingsForm';
 import { UserRole } from '../../types';
 
 
-type SettingsTab = 'general' | 'financial' | 'bungalows' | 'pricing' | 'loyalty' | 'security' | 'roles' | 'modules' | 'license';
+type SettingsTab = 'general' | 'financial' | 'bungalows' | 'pricing' | 'loyalty' | 'security' | 'roles' | 'modules' | 'ai' | 'license';
 
 const SettingsPage: React.FC = () => {
     const { currentUser } = useAuth();
@@ -28,8 +30,9 @@ const SettingsPage: React.FC = () => {
         { id: 'pricing', label: 'Tarification', component: <PricingSettingsForm /> },
         { id: 'loyalty', label: 'Fidélité', component: <LoyaltySettingsForm /> },
         { id: 'security', label: 'Sécurité', component: <SecuritySettingsForm /> },
-        { id: 'roles', label: 'Rôles', component: <RolesSettingsForm />, adminOnly: true },
+        { id: 'roles', label: 'Rôles', component: <RolesSettingsForm /> },
         { id: 'modules', label: 'Modules', component: <ModuleSettingsForm />, adminOnly: true },
+        { id: 'ai', label: 'IA & Intégrations', component: <AISettingsForm />, adminOnly: true },
         { id: 'license', label: 'Licence', component: <LicenseSettingsForm />, adminOnly: true },
     ];
     
@@ -62,7 +65,7 @@ const SettingsPage: React.FC = () => {
                 </div>
                 
                 <div>
-                    {visibleTabs.find(tab => tab.id === activeTab)?.component}
+                    {tabs.find(tab => tab.id === activeTab)?.component}
                 </div>
             </div>
         </div>

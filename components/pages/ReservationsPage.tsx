@@ -34,24 +34,25 @@ const ReservationsPage: React.FC = () => {
     };
 
     const handleSaveReservation = async (reservationToSave: Reservation): Promise<boolean> => {
-        let success = false;
+        // FIX: Correctly handle the { success: boolean } return type from add/update reservation functions.
+        let result: { success: boolean };
         if (reservationToSave.id) {
             // Editing existing reservation
-            success = await updateReservation(reservationToSave);
+            result = await updateReservation(reservationToSave);
         } else {
             // Adding new reservation
             const newReservation = {
                 ...reservationToSave,
                 id: `res-${Date.now()}`
             };
-            success = await addReservation(newReservation);
+            result = await addReservation(newReservation);
         }
         
-        if (success) {
+        if (result.success) {
             setFormModalOpen(false);
             setEditingReservation(null);
         }
-        return success;
+        return result.success;
     };
 
 
@@ -128,6 +129,8 @@ const ReservationsPage: React.FC = () => {
                     date={currentDate} 
                     reservations={reservations} 
                     onSelectReservation={handleSelectReservation} 
+                    // FIX: Pass bungalows data to the month view component.
+                    bungalows={bungalows}
                 />
             ) : (
                 <ReservationsCalendarView

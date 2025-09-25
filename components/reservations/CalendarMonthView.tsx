@@ -1,14 +1,16 @@
 import React from 'react';
-import { Reservation, ReservationStatus } from '../../types';
-import { MOCK_BUNGALOWS } from '../../constants';
+// FIX: Import Bungalow type and remove MOCK_BUNGALOWS import.
+import { Reservation, ReservationStatus, Bungalow } from '../../types';
 
 interface CalendarMonthViewProps {
   date: Date;
   reservations: Reservation[];
   onSelectReservation: (reservation: Reservation) => void;
+  // FIX: Add bungalows prop to receive real data instead of mock data.
+  bungalows: Bungalow[];
 }
 
-const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({ date, reservations, onSelectReservation }) => {
+const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({ date, reservations, onSelectReservation, bungalows }) => {
   const year = date.getFullYear();
   const month = date.getMonth();
 
@@ -64,7 +66,8 @@ const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({ date, reservation
                       return day >= startDate && day <= endDate;
                   })
                   .map(res => {
-                      const bungalow = MOCK_BUNGALOWS.find(b => b.id === res.bungalowId);
+                      // FIX: Use bungalows from props instead of mock data.
+                      const bungalow = bungalows.find(b => b.id === res.bungalowId);
                       return (
                           <button 
                               key={res.id} 

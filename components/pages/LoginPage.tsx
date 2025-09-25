@@ -5,10 +5,10 @@ import { UserRole } from '../../types';
 import Button from '../ui/Button';
 
 const LoginPage: React.FC = () => {
-    const { login, settings, allUsers } = useAuth();
+    const { login, settings } = useAuth();
     const navigate = useNavigate();
     const [email, setEmail] = useState('djalalttl@bungalow.dz'); // Pre-fill Super Admin for convenience
-    const [password, setPassword] = useState('tooroot'); // Dummy password
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -16,25 +16,14 @@ const LoginPage: React.FC = () => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const success = await login(email, password);
+        
+        const { success, error } = await login(email, password);
+        
         setIsLoading(false);
         if (success) {
             navigate('/');
         } else {
-            setError('Email ou mot de passe incorrect.');
-        }
-    };
-    
-    const handleQuickLogin = (role: UserRole) => {
-        const user = allUsers.find(u => u.role === role);
-        if (user) {
-            setEmail(user.email);
-            // Pre-fill passwords for demo purposes
-            if (role === UserRole.SuperAdmin) setPassword('tooroot');
-            else if (role === UserRole.Admin) setPassword('admin');
-            else setPassword('password123');
+            setError(error || 'Une erreur est survenue.');
         }
     };
 
@@ -103,18 +92,6 @@ const LoginPage: React.FC = () => {
                         </Button>
                     </div>
                 </form>
-
-                 <div className="mt-6 border-t pt-4 border-gray-300 dark:border-gray-600">
-                    <fieldset className="border border-dashed border-gray-400 dark:border-gray-500 rounded-lg p-3">
-                         <legend className="px-2 text-sm font-medium text-gray-600 dark:text-gray-400">Accès Rapide (Démo)</legend>
-                         <div className="grid grid-cols-2 gap-3">
-                            <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.SuperAdmin)}>Super Admin</Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Admin)}>Admin</Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Manager)}>Manager</Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Employee)}>Employé</Button>
-                         </div>
-                    </fieldset>
-                 </div>
             </div>
         </div>
     );
