@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { UserRole } from '../../types';
 import Button from '../ui/Button';
 
 const LoginPage: React.FC = () => {
-    const { login, settings } = useAuth();
+    const { login, settings, allUsers } = useAuth();
     const navigate = useNavigate();
     const [email, setEmail] = useState('admin@bungalow.dz'); // Pre-fill for convenience
     const [password, setPassword] = useState('password'); // Dummy password
@@ -15,7 +16,6 @@ const LoginPage: React.FC = () => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
-        // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, 500));
         const success = await login(email, password);
         setIsLoading(false);
@@ -25,17 +25,28 @@ const LoginPage: React.FC = () => {
             setError('Email ou mot de passe incorrect.');
         }
     };
+    
+    const handleQuickLogin = (role: UserRole) => {
+        const user = allUsers.find(u => u.role === role);
+        if (user) {
+            setEmail(user.email);
+            setPassword('password'); // Use the dummy password for all demo accounts
+        }
+    };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-            <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+        <div 
+            className="min-h-screen bg-cover bg-center flex items-center justify-center p-4" 
+            style={{ backgroundImage: `url('https://picsum.photos/seed/resort/1920/1080')` }}
+        >
+            <div className="w-full max-w-md p-8 space-y-6 bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl">
                 <div className="text-center">
                     <img className="w-16 h-16 mx-auto" src={settings.general.logoUrl} alt="Logo" />
-                    <h1 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
+                    <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">
                         {settings.general.complexName}
                     </h1>
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Connectez-vous à votre compte
+                        Connectez-vous à votre espace de gestion
                     </p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -50,7 +61,7 @@ const LoginPage: React.FC = () => {
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
                                 placeholder="Adresse e-mail"
                             />
                         </div>
@@ -64,18 +75,40 @@ const LoginPage: React.FC = () => {
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
                                 placeholder="Mot de passe"
                             />
                         </div>
                     </div>
-                    {error && <p className="text-sm text-center text-red-600">{error}</p>}
+
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" />
+                            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Se souvenir de moi</label>
+                        </div>
+                        <div className="text-sm">
+                            <a href="#" className="font-medium text-primary-600 hover:text-primary-500">Mot de passe oublié ?</a>
+                        </div>
+                    </div>
+
+                    {error && <p className="text-sm text-center text-red-600 dark:text-red-400">{error}</p>}
+                    
                     <div>
-                        <Button type="submit" className="w-full" disabled={isLoading}>
+                        <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                             {isLoading ? 'Connexion...' : 'Se connecter'}
                         </Button>
                     </div>
                 </form>
+
+                 <div className="mt-6 border-t pt-6 border-gray-300 dark:border-gray-600">
+                     <p className="text-center text-sm font-medium text-gray-600 dark:text-gray-400 mb-4">Accès Rapide (Démo)</p>
+                     <div className="grid grid-cols-2 gap-3">
+                        <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.SuperAdmin)}>Super Admin</Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Admin)}>Admin</Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Manager)}>Manager</Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Employee)}>Employé</Button>
+                     </div>
+                 </div>
             </div>
         </div>
     );
