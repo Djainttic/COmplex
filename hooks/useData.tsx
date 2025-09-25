@@ -1,6 +1,6 @@
 // hooks/useData.tsx
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, BungalowStatus, CommunicationLog, LoyaltyLog } from '../types';
+import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, BungalowStatus, CommunicationLog, LoyaltyLog, ReservationStatus } from '../types';
 import { MOCK_BUNGALOWS, MOCK_CLIENTS, MOCK_RESERVATIONS, MOCK_INVOICES, MOCK_MAINTENANCE_REQUESTS, MOCK_LOYALTY_LOGS } from '../constants';
 import { useAuth } from './useAuth';
 
@@ -67,8 +67,8 @@ interface DataContextType {
     deleteClient: (clientId: string) => void;
 
     reservations: Reservation[];
-    updateReservation: (res: Reservation) => void;
-    addReservation: (res: Reservation) => void;
+    updateReservation: (res: Reservation) => Promise<boolean>;
+    addReservation: (res: Reservation) => Promise<boolean>;
 
     invoices: Invoice[];
     updateInvoice: (inv: Invoice) => void;
@@ -126,10 +126,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 );
             }
         }
-    // This effect should run when the app loads or settings change.
-    // We don't add reservations/bungalows to dependencies to prevent potential loops on frequent data changes.
     }, [settings.bungalows.automation.enableAutoCleaning]);
     
+    const isBungalowAvailable = (bungalowId: string, startDate: string, endDate: string, currentReservationId: string | null): boolean => {
+        const newStart = new Date(startDate).getTime();
+        const newEnd = new Date(endDate).getTime();
+
+        const conflictingReservation = reservations.find(res => {
+            if (res.bungalowId !== bungalowId || res.id === currentReservationId || res.status === ReservationStatus.Cancelled) {
+                return false;
+            }
+            const existingStart = new Date(res.startDate).getTime();
+            const existingEnd = new Date(res.endDate).getTime();
+            
+            // Check for overlap: (StartA < EndB) and (EndA > StartB)
+            return newStart < existingEnd && newEnd > existingStart;
+        });
+
+        return !conflictingReservation;
+    };
+
     // Bungalows
     const updateBungalow = (bungalow: Bungalow) => setBungalows(prev => prev.map(b => b.id === bungalow.id ? bungalow : b));
     const addBungalow = (bungalow: Bungalow) => setBungalows(prev => [bungalow, ...prev]);
@@ -141,8 +157,42 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const deleteClient = (clientId: string) => setClients(prev => prev.filter(c => c.id !== clientId));
 
     // Reservations
-    const updateReservation = (res: Reservation) => setReservations(prev => prev.map(r => r.id === res.id ? res : r));
-    const addReservation = (res: Reservation) => setReservations(prev => [...prev, res]);
+    const updateReservation = async (res: Reservation): Promise<boolean> => {
+        if (!isBungalowAvailable(res.bungalowId, res.startDate, res.endDate, res.id)) {
+            alert("Erreur : Ce bungalow est déjà réservé pour ces dates.");
+            return false;
+        }
+        setReservations(prev => prev.map(r => (r.id === res.id ? res : r)));
+        if(res.status === ReservationStatus.Confirmed) {
+            updateBungalowStatusOnReservation(res.bungalowId, res.startDate, res.endDate);
+        }
+        return true;
+    };
+
+    const addReservation = async (res: Reservation): Promise<boolean> => {
+        if (!isBungalowAvailable(res.bungalowId, res.startDate, res.endDate, null)) {
+            alert("Erreur : Ce bungalow est déjà réservé pour ces dates.");
+            return false;
+        }
+        setReservations(prev => [...prev, res]);
+        if(res.status === ReservationStatus.Confirmed) {
+            updateBungalowStatusOnReservation(res.bungalowId, res.startDate, res.endDate);
+        }
+        return true;
+    };
+    
+    const updateBungalowStatusOnReservation = (bungalowId: string, startDate: string, endDate: string) => {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const today = new Date();
+
+        if (today >= start && today < end) {
+            setBungalows(prev => prev.map(b => 
+                b.id === bungalowId ? { ...b, status: BungalowStatus.Occupied } : b
+            ));
+        }
+    };
+
 
     // Invoices
     const updateInvoice = (inv: Invoice) => setInvoices(prev => prev.map(i => i.id === inv.id ? inv : i));

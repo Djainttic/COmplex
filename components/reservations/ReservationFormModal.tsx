@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 interface ReservationFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (reservation: Reservation) => void;
+    onSave: (reservation: Reservation) => Promise<boolean>;
     reservation: Partial<Reservation> | null;
     bungalows: Bungalow[];
     clients: Client[];
@@ -24,6 +24,7 @@ const ReservationFormModal: React.FC<ReservationFormModalProps> = ({
     const { settings } = useAuth();
     const [formData, setFormData] = useState<Partial<Reservation>>({});
     const [appliedRules, setAppliedRules] = useState<string[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -160,7 +161,7 @@ const ReservationFormModal: React.FC<ReservationFormModalProps> = ({
         });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.bungalowId || !formData.clientId || !formData.startDate || !formData.endDate) {
             alert("Veuillez remplir tous les champs obligatoires.");
@@ -170,11 +171,18 @@ const ReservationFormModal: React.FC<ReservationFormModalProps> = ({
             alert("La date de départ doit être après la date d'arrivée.");
             return;
         }
-        onSave({
+
+        setIsSaving(true);
+        const success = await onSave({
             ...formData,
             startDate: new Date(formData.startDate).toISOString(),
             endDate: new Date(formData.endDate).toISOString(),
         } as Reservation);
+        setIsSaving(false);
+
+        if (success) {
+            onClose();
+        }
     };
 
     const title = reservation?.id ? "Modifier la réservation" : "Ajouter une réservation";
@@ -186,8 +194,10 @@ const ReservationFormModal: React.FC<ReservationFormModalProps> = ({
             title={title}
             footer={
                 <>
-                    <Button variant="secondary" onClick={onClose}>Annuler</Button>
-                    <Button onClick={handleSubmit}>Enregistrer</Button>
+                    <Button variant="secondary" onClick={onClose} disabled={isSaving}>Annuler</Button>
+                    <Button onClick={handleSubmit} disabled={isSaving}>
+                        {isSaving ? "Enregistrement..." : "Enregistrer"}
+                    </Button>
                 </>
             }
         >

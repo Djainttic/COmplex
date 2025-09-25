@@ -120,7 +120,8 @@ const ReservationsCalendarView: React.FC<ReservationsCalendarViewProps> = ({
                             onClick={() => onAddReservation(bungalow.id, date)}
                             className="w-full h-full group flex items-center justify-center hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
                             style={{ minHeight: '4rem' }}
-                            aria-label={`Ajouter une réservation pour ${bungalow.name} le ${formatDateDDMMYYYY(date)}`}
+                            // FIX: Pass date as an ISO string to `formatDateDDMMYYYY` which expects a string, not a Date object.
+                            aria-label={`Ajouter une réservation pour ${bungalow.name} le ${formatDateDDMMYYYY(date.toISOString())}`}
                         >
                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 group-hover:text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                         </button>

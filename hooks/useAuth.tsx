@@ -4,16 +4,16 @@ import { User, Settings, UserRole, UserStatus, Permission, RoleSetting, Currency
 
 // This is a simplified mock of a backend.
 const MOCK_USERS: User[] = [
-    { id: 'user-superadmin', name: 'Syphax Admin', email: 'superadmin@bungalow.dz', role: UserRole.SuperAdmin, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/superadmin/200', lastLogin: new Date().toISOString(), isOnline: true, permissions: [] },
-    { id: 'user-admin', name: 'Amine Admin', email: 'admin_syphax@bungalow.dz', role: UserRole.Admin, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/admin/200', lastLogin: new Date().toISOString(), isOnline: true, permissions: [] },
+    { id: 'user-superadmin', name: 'Djalal TTL', email: 'djalalttl@bungalow.dz', role: UserRole.SuperAdmin, status: UserStatus.Active, avatarUrl: 'https://i.ibb.co/2d9y22T/syphax-logo.png', lastLogin: new Date().toISOString(), isOnline: true, permissions: [] },
+    { id: 'user-admin', name: 'Admin Syphax', email: 'admin_syphax@bungalow.dz', role: UserRole.Admin, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/admin/200', lastLogin: new Date().toISOString(), isOnline: true, permissions: [] },
     { id: 'user-manager', name: 'Fatima Manager', email: 'manager@bungalow.dz', role: UserRole.Manager, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/manager/200', lastLogin: new Date().toISOString(), isOnline: false, permissions: [] },
     { id: 'user-employee', name: 'Karim Employé', email: 'employee@bungalow.dz', role: UserRole.Employee, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/employee/200', lastLogin: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), isOnline: true, permissions: [] },
 ];
 
 const DEFAULT_SETTINGS: Settings = {
     general: {
-        complexName: 'Bungalow Syphax',
-        logoUrl: '/logo.png',
+        complexName: 'SYPHAX, village touristique',
+        logoUrl: 'https://i.ibb.co/2d9y22T/syphax-logo.png',
         bungalowCount: 6,
     },
     financial: {
@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS: Settings = {
         'bungalows': true, 'reservations': true, 'clients': true, 'facturation': true, 'fidelite': true, 'communication': true, 'maintenance': true, 'rapports': true, 'utilisateurs': true,
     },
     loyalty: { enabled: true, pointsPerNight: 10, pointsForFirstReservation: 50, pointsToCurrencyValue: 5 },
-    license: { key: 'BUNG-ALGER-2024-XXXX-XXXX', status: 'Active', expiresOn: '2025-12-31T23:59:59Z' },
+    license: { key: 'SYPHAX-PRO-2024-DEMO-XXXX', status: 'Active', expiresOn: '2025-12-31T23:59:59Z' },
 };
 
 
@@ -86,7 +86,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const login = async (email: string, pass: string): Promise<boolean> => {
         // This is a mock login. In a real app, you'd call an API.
-        const user = allUsers.find(u => u.email === email);
+        // For this demo, we ignore the password and only check if the user exists.
+        const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
         if (user) {
             setCurrentUser(user);
             window.localStorage.setItem('currentUser', JSON.stringify(user));

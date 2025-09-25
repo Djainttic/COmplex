@@ -7,8 +7,8 @@ import Button from '../ui/Button';
 const LoginPage: React.FC = () => {
     const { login, settings, allUsers } = useAuth();
     const navigate = useNavigate();
-    const [email, setEmail] = useState('admin_syphax@bungalow.dz'); // Pre-fill for convenience
-    const [password, setPassword] = useState('admin'); // Dummy password
+    const [email, setEmail] = useState('djalalttl@bungalow.dz'); // Pre-fill Super Admin for convenience
+    const [password, setPassword] = useState('tooroot'); // Dummy password
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -16,6 +16,7 @@ const LoginPage: React.FC = () => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
+        // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, 500));
         const success = await login(email, password);
         setIsLoading(false);
@@ -33,16 +34,16 @@ const LoginPage: React.FC = () => {
             // Pre-fill passwords for demo purposes
             if (role === UserRole.SuperAdmin) setPassword('tooroot');
             else if (role === UserRole.Admin) setPassword('admin');
-            else setPassword('password');
+            else setPassword('password123');
         }
     };
 
     return (
         <div 
             className="min-h-screen bg-cover bg-center flex items-center justify-center p-4" 
-            style={{ backgroundImage: `url('https://picsum.photos/seed/resort/1920/1080')` }}
+            style={{ backgroundImage: `url('https://i.ibb.co/3W81zgx/syphax-bg.jpg')` }}
         >
-            <div className="w-full max-w-md p-8 space-y-6 bg-white/80 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl">
+            <div className="w-full max-w-md p-8 space-y-6 bg-white/80 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl shadow-2xl">
                 <div className="text-center">
                     <img className="w-16 h-16 mx-auto" src={settings.general.logoUrl} alt="Logo" />
                     <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">
@@ -103,14 +104,16 @@ const LoginPage: React.FC = () => {
                     </div>
                 </form>
 
-                 <div className="mt-6 border-t pt-6 border-gray-300 dark:border-gray-600">
-                     <p className="text-center text-sm font-medium text-gray-600 dark:text-gray-400 mb-4">Accès Rapide (Démo)</p>
-                     <div className="grid grid-cols-2 gap-3">
-                        <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.SuperAdmin)}>Super Admin</Button>
-                        <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Admin)}>Admin</Button>
-                        <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Manager)}>Manager</Button>
-                        <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Employee)}>Employé</Button>
-                     </div>
+                 <div className="mt-6 border-t pt-4 border-gray-300 dark:border-gray-600">
+                    <fieldset className="border border-dashed border-gray-400 dark:border-gray-500 rounded-lg p-3">
+                         <legend className="px-2 text-sm font-medium text-gray-600 dark:text-gray-400">Accès Rapide (Démo)</legend>
+                         <div className="grid grid-cols-2 gap-3">
+                            <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.SuperAdmin)}>Super Admin</Button>
+                            <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Admin)}>Admin</Button>
+                            <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Manager)}>Manager</Button>
+                            <Button variant="secondary" size="sm" onClick={() => handleQuickLogin(UserRole.Employee)}>Employé</Button>
+                         </div>
+                    </fieldset>
                  </div>
             </div>
         </div>

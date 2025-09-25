@@ -33,20 +33,25 @@ const ReservationsPage: React.FC = () => {
         setFormModalOpen(true);
     };
 
-    const handleSaveReservation = (reservationToSave: Reservation) => {
+    const handleSaveReservation = async (reservationToSave: Reservation): Promise<boolean> => {
+        let success = false;
         if (reservationToSave.id) {
             // Editing existing reservation
-            updateReservation(reservationToSave);
+            success = await updateReservation(reservationToSave);
         } else {
             // Adding new reservation
             const newReservation = {
                 ...reservationToSave,
                 id: `res-${Date.now()}`
             };
-            addReservation(newReservation);
+            success = await addReservation(newReservation);
         }
-        setFormModalOpen(false);
-        setEditingReservation(null);
+        
+        if (success) {
+            setFormModalOpen(false);
+            setEditingReservation(null);
+        }
+        return success;
     };
 
 
@@ -78,7 +83,7 @@ const ReservationsPage: React.FC = () => {
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
 
-        return `${formatDateDDMMYYYY(weekStart)} - ${formatDateDDMMYYYY(weekEnd)}`;
+        return `${formatDateDDMMYYYY(weekStart.toISOString())} - ${formatDateDDMMYYYY(weekEnd.toISOString())}`;
     }, [currentDate, viewMode]);
 
     const selectedBungalow = bungalows.find(b => b.id === selectedReservation?.bungalowId);
