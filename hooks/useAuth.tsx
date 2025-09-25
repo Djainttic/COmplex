@@ -1,4 +1,3 @@
-// hooks/useAuth.tsx
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User, Settings, UserRole, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType } from '../types';
@@ -73,57 +72,68 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         const fetchInitialData = async (session: Session | null) => {
-            if (session) {
-                // Fetch current user's profile
-                const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
+            try {
+                if (session) {
+                    // Fetch current user's profile
+                    const { data: profile, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', session.user.id)
+                        .single();
 
-                if (profileError) {
-                    console.error("Error fetching profile:", profileError);
+                    if (profileError) {
+                        console.error("Error fetching profile:", profileError);
+                        setCurrentUser(null);
+                    } else if (profile) {
+                        setCurrentUser({
+                            id: profile.id,
+                            name: profile.name,
+                            email: profile.email,
+                            phone: profile.phone,
+                            role: profile.role,
+                            status: profile.status,
+                            avatarUrl: profile.avatar_url,
+                            isOnline: profile.is_online,
+                            lastLogin: profile.last_login,
+                            permissions: [], // Permissions are derived from role and settings
+                        });
+                    }
+
+                    // Fetch all users for management purposes
+                    const { data: allProfiles, error: allProfilesError } = await supabase
+                        .from('profiles')
+                        .select('*');
+                    
+                    if (allProfilesError) {
+                         console.error("Error fetching all profiles (check RLS policies):", allProfilesError);
+                    }
+                    
+                    if(allProfiles) {
+                        setAllUsers(allProfiles.map(p => ({
+                            id: p.id,
+                            name: p.name,
+                            email: p.email,
+                            phone: p.phone,
+                            role: p.role,
+                            status: p.status,
+                            avatarUrl: p.avatar_url,
+                            isOnline: p.is_online,
+                            lastLogin: p.last_login,
+                            permissions: [],
+                        })));
+                    }
+
+                } else {
                     setCurrentUser(null);
-                } else if (profile) {
-                    setCurrentUser({
-                        id: profile.id,
-                        name: profile.name,
-                        email: profile.email,
-                        phone: profile.phone,
-                        role: profile.role,
-                        status: profile.status,
-                        avatarUrl: profile.avatar_url,
-                        isOnline: profile.is_online,
-                        lastLogin: profile.last_login,
-                        permissions: [], // Permissions are derived from role and settings
-                    });
+                    setAllUsers([]);
                 }
-
-                // Fetch all users for management purposes
-                const { data: allProfiles, error: allProfilesError } = await supabase
-                    .from('profiles')
-                    .select('*');
-                
-                if(allProfiles) {
-                    setAllUsers(allProfiles.map(p => ({
-                        id: p.id,
-                        name: p.name,
-                        email: p.email,
-                        phone: p.phone,
-                        role: p.role,
-                        status: p.status,
-                        avatarUrl: p.avatar_url,
-                        isOnline: p.is_online,
-                        lastLogin: p.last_login,
-                        permissions: [],
-                    })));
-                }
-
-            } else {
+            } catch (error) {
+                console.error("Critical error during initial data fetch:", error);
                 setCurrentUser(null);
                 setAllUsers([]);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
 
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -133,6 +143,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
+            setLoading(true); // Set loading to true while new session data is fetched
             fetchInitialData(session);
         });
 

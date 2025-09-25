@@ -50,31 +50,44 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     useEffect(() => {
         const fetchAllData = async () => {
-            const [
-                { data: bungalowsData }, 
-                { data: clientsData },
-                { data: reservationsData },
-                { data: invoicesData },
-                { data: maintenanceData },
-                { data: communicationData },
-                { data: loyaltyData },
-            ] = await Promise.all([
-                supabase.from('bungalows').select('*'),
-                supabase.from('clients').select('*'),
-                supabase.from('reservations').select('*'),
-                supabase.from('invoices').select('*'),
-                supabase.from('maintenance_requests').select('*'),
-                supabase.from('communication_logs').select('*'),
-                supabase.from('loyalty_logs').select('*'),
-            ]);
+            try {
+                const [
+                    { data: bungalowsData, error: bungalowsError }, 
+                    { data: clientsData, error: clientsError },
+                    { data: reservationsData, error: reservationsError },
+                    { data: invoicesData, error: invoicesError },
+                    { data: maintenanceData, error: maintenanceError },
+                    { data: communicationData, error: communicationError },
+                    { data: loyaltyData, error: loyaltyError },
+                ] = await Promise.all([
+                    supabase.from('bungalows').select('*'),
+                    supabase.from('clients').select('*'),
+                    supabase.from('reservations').select('*'),
+                    supabase.from('invoices').select('*'),
+                    supabase.from('maintenance_requests').select('*'),
+                    supabase.from('communication_logs').select('*'),
+                    supabase.from('loyalty_logs').select('*'),
+                ]);
 
-            setBungalows((bungalowsData as any[]) || []);
-            setClients((clientsData as any[]) || []);
-            setReservations((reservationsData as any[]) || []);
-            setInvoices((invoicesData as any[]) || []);
-            setMaintenanceRequests((maintenanceData as any[]) || []);
-            setCommunicationLogs((communicationData as any[]) || []);
-            setLoyaltyLogs((loyaltyData as any[]) || []);
+                if (bungalowsError) throw bungalowsError;
+                if (clientsError) throw clientsError;
+                if (reservationsError) throw reservationsError;
+                if (invoicesError) throw invoicesError;
+                if (maintenanceError) throw maintenanceError;
+                if (communicationError) throw communicationError;
+                if (loyaltyError) throw loyaltyError;
+
+                setBungalows((bungalowsData as any[]) || []);
+                setClients((clientsData as any[]) || []);
+                setReservations((reservationsData as any[]) || []);
+                setInvoices((invoicesData as any[]) || []);
+                setMaintenanceRequests((maintenanceData as any[]) || []);
+                setCommunicationLogs((communicationData as any[]) || []);
+                setLoyaltyLogs((loyaltyData as any[]) || []);
+            } catch (error) {
+                console.error("Failed to load initial application data:", error);
+                // Optionally set an error state here to show a banner to the user
+            }
         };
 
         fetchAllData();
