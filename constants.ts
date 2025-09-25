@@ -31,7 +31,7 @@ export const MOCK_BUNGALOWS: Bungalow[] = [
         capacity: 2,
         pricePerNight: 18000,
         amenities: ['Climatisation', 'Wi-Fi', 'Vue sur mer', 'Mini-bar'],
-        imageUrl: `https://i.ibb.co/W2zZcM0/bungalow1.jpg`,
+        imageUrl: `https://i.ibb.co/6r1z0zY/syphax1.jpg`,
         description: 'Idéal pour les couples, avec une vue magnifique sur la mer.'
     },
     {
@@ -42,7 +42,7 @@ export const MOCK_BUNGALOWS: Bungalow[] = [
         capacity: 4,
         pricePerNight: 22000,
         amenities: ['Climatisation', 'Wi-Fi', 'Cuisine équipée'],
-        imageUrl: `https://i.ibb.co/M8V2R8P/bungalow2.jpg`,
+        imageUrl: `https://i.ibb.co/L5k6Y6c/syphax2.jpg`,
         description: 'Spacieux et parfait pour les familles, proche de la piscine.'
     },
     {
@@ -53,7 +53,7 @@ export const MOCK_BUNGALOWS: Bungalow[] = [
         capacity: 2,
         pricePerNight: 25000,
         amenities: ['Climatisation', 'Wi-Fi', 'Jacuzzi privé', 'Service de chambre'],
-        imageUrl: `https://picsum.photos/seed/bungalow3/400/300`,
+        imageUrl: `https://i.ibb.co/Ld1Dq9q/syphax3.jpg`,
         description: 'Le luxe absolu pour une escapade romantique inoubliable.'
     },
     {
@@ -64,7 +64,7 @@ export const MOCK_BUNGALOWS: Bungalow[] = [
         capacity: 6,
         pricePerNight: 20000,
         amenities: ['Climatisation', 'Wi-Fi', 'Deux chambres', 'Cuisine complète'],
-        imageUrl: `https://picsum.photos/seed/bungalow4/400/300`,
+        imageUrl: `https://i.ibb.co/q0VvBCH/syphax4.jpg`,
         description: 'Spacieux et confortable, idéal pour les grandes familles ou les groupes.'
     },
      {
@@ -75,7 +75,7 @@ export const MOCK_BUNGALOWS: Bungalow[] = [
         capacity: 2,
         pricePerNight: 10000,
         amenities: ['Climatisation', 'Wi-Fi'],
-        imageUrl: `https://picsum.photos/seed/bungalow5/400/300`,
+        imageUrl: `https://i.ibb.co/6gG4q4J/syphax5.jpg`,
         description: 'Un bungalow simple et confortable, parfait pour un court séjour.'
     },
      {
@@ -86,7 +86,7 @@ export const MOCK_BUNGALOWS: Bungalow[] = [
         capacity: 3,
         pricePerNight: 16000,
         amenities: ['Climatisation', 'Wi-Fi', 'Vue sur jardin', 'Terrasse privée'],
-        imageUrl: `https://picsum.photos/seed/bungalow6/400/300`,
+        imageUrl: `https://i.ibb.co/LgQYd99/syphax6.jpg`,
         description: 'Profitez de la tranquillité de notre jardin depuis votre terrasse privée.'
     }
 ];
