@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, UserRole, UserStatus } from '../../types';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import { useAuth } from '../../hooks/useAuth';
 
 interface UserFormModalProps {
     isOpen: boolean;
@@ -10,7 +11,15 @@ interface UserFormModalProps {
     user: User | null; // null for new user, User object for editing
 }
 
+const ROLE_HIERARCHY: UserRole[] = [
+  UserRole.Employee,
+  UserRole.Manager,
+  UserRole.Admin,
+  UserRole.SuperAdmin,
+];
+
 const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, user }) => {
+    const { currentUser } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -18,6 +27,16 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         role: UserRole.Employee,
         status: UserStatus.Active,
     });
+
+    const isEditingSelf = useMemo(() => currentUser?.id === user?.id, [currentUser, user]);
+
+    const availableRoles = useMemo(() => {
+        if (!currentUser || currentUser.role === UserRole.SuperAdmin) {
+            return Object.values(UserRole);
+        }
+        const currentUserLevel = ROLE_HIERARCHY.indexOf(currentUser.role);
+        return ROLE_HIERARCHY.filter((_, index) => index < currentUserLevel);
+    }, [currentUser]);
 
     useEffect(() => {
         if (user) {
@@ -33,11 +52,11 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                 name: '',
                 email: '',
                 phone: '',
-                role: UserRole.Employee,
+                role: availableRoles[0] || UserRole.Employee,
                 status: UserStatus.Active,
             });
         }
-    }, [user, isOpen]);
+    }, [user, isOpen, availableRoles]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -113,9 +132,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                         id="role"
                         value={formData.role}
                         onChange={handleChange}
-                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600"
+                        disabled={isEditingSelf}
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50"
                     >
-                        {(Object.values(UserRole) as string[]).map(role => <option key={role} value={role}>{role}</option>)}
+                        {availableRoles.map(role => <option key={role} value={role}>{role}</option>)}
                     </select>
                 </div>
                 <div>
@@ -125,7 +145,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                         id="status"
                         value={formData.status}
                         onChange={handleChange}
-                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600"
+                        disabled={isEditingSelf}
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50"
                     >
                          {(Object.values(UserStatus) as string[]).map(status => <option key={status} value={status}>{status}</option>)}
                     </select>

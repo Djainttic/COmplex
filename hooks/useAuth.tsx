@@ -128,7 +128,7 @@ const MOCK_ALL_USERS: User[] = [
 const MOCK_SETTINGS: Settings = {
     general: {
         complexName: 'SYPHAX, village touristique',
-        logoUrl: 'https://i.ibb.co/L5QhKqC/syphax.png',
+        logoUrl: 'https://i.ibb.co/2d9y22T/syphax-logo.png',
         bungalowCount: 12,
     },
     financial: {
@@ -228,6 +228,8 @@ interface AuthContextType {
     settings: Settings;
     hasPermission: (permission: Permission | Permission[]) => boolean;
     updateUser: (user: User) => void;
+    addUser: (user: Omit<User, 'id' | 'permissions' | 'lastLogin' | 'isOnline' | 'avatarUrl'>) => User;
+    deleteUser: (userId: string) => void;
     updateSettings: (newSettings: Settings) => void;
     login: (email: string, password?: string) => Promise<boolean>;
     logout: () => void;
@@ -276,6 +278,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setCurrentUser(updatedUser);
         }
     };
+
+    const addUser = (userData: Omit<User, 'id' | 'permissions' | 'lastLogin' | 'isOnline' | 'avatarUrl'>): User => {
+        const newUser: User = {
+            ...userData,
+            id: `user-${Date.now()}`,
+            avatarUrl: `https://i.pravatar.cc/150?u=${userData.email}`,
+            permissions: getPermissionsForRole(userData.role),
+            lastLogin: new Date().toISOString(),
+            isOnline: false,
+        };
+        setAllUsers(prev => [...prev, newUser]);
+        return newUser;
+    };
+
+    const deleteUser = (userId: string) => {
+        setAllUsers(prev => prev.filter(u => u.id !== userId));
+    };
     
     const updateSettings = (newSettings: Settings) => {
         // Propagate role changes to all users if roles have been updated
@@ -316,6 +335,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         settings,
         hasPermission,
         updateUser,
+        addUser,
+        deleteUser,
         updateSettings,
         login,
         logout,

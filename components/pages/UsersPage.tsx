@@ -3,16 +3,22 @@ import { User } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import UserTable from '../users/UserTable';
 import UserFormModal from '../users/UserFormModal';
-import AuditLogModal from '../users/AuditLogModal';
+import ConfirmationModal from '../ui/ConfirmationModal';
+import UserCreationSuccessModal from '../users/UserCreationSuccessModal';
 import Button from '../ui/Button';
 import { getVisibleUsers } from '../../constants';
 
 const UsersPage: React.FC = () => {
-    const { currentUser, hasPermission, allUsers, updateUser } = useAuth();
-    // Local state for modals
+    const { currentUser, hasPermission, allUsers, updateUser, addUser, deleteUser } = useAuth();
+    
+    // State for modals
     const [isFormModalOpen, setFormModalOpen] = useState(false);
-    const [isAuditModalOpen, setAuditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
+    
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
+    const [newUserCreds, setNewUserCreds] = useState<{ email: string, temporaryPassword: string } | null>(null);
 
     const visibleUsers = getVisibleUsers(currentUser, allUsers);
 
@@ -25,16 +31,18 @@ const UsersPage: React.FC = () => {
         setSelectedUser(user);
         setFormModalOpen(true);
     };
-
-    const handleViewAuditLog = (user: User) => {
-        setSelectedUser(user);
-        setAuditModalOpen(true);
-    };
     
-    const handleDeleteUser = (userId: string) => {
-        // In a real app, this would be an API call and then update state
-        // For now, we filter out the user, but this is not persisted in the context
-        console.warn("Delete functionality is not fully implemented in the mock context.");
+    const handleDeleteRequest = (user: User) => {
+        setUserToDelete(user);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDeleteUser = () => {
+        if (userToDelete) {
+            deleteUser(userToDelete.id);
+        }
+        setDeleteModalOpen(false);
+        setUserToDelete(null);
     };
 
     const handleSaveUser = (user: User) => {
@@ -42,11 +50,16 @@ const UsersPage: React.FC = () => {
             // Edit existing user
             updateUser(user);
         } else {
-            // Add new user - NOTE: In a real app, API would return the new user with ID
-            const newUser = { ...user, id: (Math.random() * 1000).toString(), avatarUrl: `https://i.pravatar.cc/150?u=${user.name}` };
-            // This part is tricky without a proper backend/state management for adding users.
-            // For now, we'll just log it. A proper implementation would add it to the `allUsers` in the context.
-            console.log("Adding new user (simulation):", newUser);
+            // Add new user
+            const newUser = addUser({
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                status: user.status,
+            });
+            setNewUserCreds({ email: newUser.email, temporaryPassword: 'password123' });
+            setSuccessModalOpen(true);
         }
         setFormModalOpen(false);
         setSelectedUser(null);
@@ -72,8 +85,7 @@ const UsersPage: React.FC = () => {
             <UserTable 
                 users={visibleUsers}
                 onEdit={handleEditUser}
-                onDelete={handleDeleteUser}
-                onViewAuditLog={handleViewAuditLog}
+                onDelete={handleDeleteRequest}
             />
 
             {isFormModalOpen && (
@@ -85,11 +97,23 @@ const UsersPage: React.FC = () => {
                 />
             )}
 
-            {isAuditModalOpen && selectedUser && (
-                <AuditLogModal 
-                    isOpen={isAuditModalOpen}
-                    onClose={() => setAuditModalOpen(false)}
-                    user={selectedUser}
+            {isDeleteModalOpen && userToDelete && (
+                <ConfirmationModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => setDeleteModalOpen(false)}
+                    onConfirm={confirmDeleteUser}
+                    title="Confirmer la suppression"
+                    message={`Êtes-vous sûr de vouloir supprimer l'utilisateur ${userToDelete.name} ? Cette action est irréversible.`}
+                    confirmText="Supprimer"
+                    variant="danger"
+                />
+            )}
+            
+            {isSuccessModalOpen && newUserCreds && (
+                <UserCreationSuccessModal
+                    isOpen={isSuccessModalOpen}
+                    onClose={() => setSuccessModalOpen(false)}
+                    credentials={newUserCreds}
                 />
             )}
         </div>
