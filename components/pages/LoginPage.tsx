@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { UserRole } from '../../types';
 import Button from '../ui/Button';
+import ForgotPasswordModal from '../users/ForgotPasswordModal';
 
 const LoginPage: React.FC = () => {
     const { login, settings } = useAuth();
@@ -11,6 +11,7 @@ const LoginPage: React.FC = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isForgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -80,7 +81,13 @@ const LoginPage: React.FC = () => {
                             <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Se souvenir de moi</label>
                         </div>
                         <div className="text-sm">
-                            <a href="#" className="font-medium text-primary-600 hover:text-primary-500">Mot de passe oublié ?</a>
+                            <button
+                                type="button"
+                                onClick={() => setForgotPasswordOpen(true)}
+                                className="font-medium text-primary-600 hover:text-primary-500"
+                            >
+                                Mot de passe oublié ?
+                            </button>
                         </div>
                     </div>
 
@@ -93,6 +100,10 @@ const LoginPage: React.FC = () => {
                     </div>
                 </form>
             </div>
+            <ForgotPasswordModal
+                isOpen={isForgotPasswordOpen}
+                onClose={() => setForgotPasswordOpen(false)}
+            />
         </div>
     );
 };

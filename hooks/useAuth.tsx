@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User, Settings, UserRole, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType, UserStatus } from '../types';
@@ -60,6 +61,7 @@ interface AuthContextType {
     hasPermission: (permission: Permission | Permission[]) => boolean;
     settings: Settings;
     updateSettings: (newSettings: Settings) => Promise<void>;
+    sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -217,6 +219,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCurrentUser(null);
     };
 
+    const sendPasswordResetEmail = async (email: string) => {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin, // After password reset, user is redirected here
+        });
+
+        if (error) {
+            console.error("Error sending password reset email:", error);
+            // Don't expose detailed errors to the user for security (e.g., "User not found")
+            return { success: false, error: "Une erreur est survenue. Veuillez vérifier l'adresse e-mail et réessayer." };
+        }
+        return { success: true, error: null };
+    };
+
     const updateUser = async (user: User) => {
         const profileData = {
             name: user.name,
@@ -333,7 +348,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         deleteUser,
         hasPermission,
         settings,
-        updateSettings
+        updateSettings,
+        sendPasswordResetEmail,
     };
 
     return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
