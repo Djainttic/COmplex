@@ -1,241 +1,100 @@
 // types.ts
 
-// Notifications
-export enum NotificationType {
-  NewReservation = 'new_reservation',
-  OverdueInvoice = 'overdue_invoice',
-  UpcomingCheckIn = 'upcoming_checkin',
-  MaintenanceAssigned = 'maintenance_assigned',
-}
-
-export interface Notification {
-  id: string;
-  type: NotificationType;
-  message: string;
-  timestamp: string; // ISO date string
-  isRead: boolean;
-  relatedId?: string; // e.g., reservationId, invoiceId
-}
-
-
-// Permissions & Roles
-export type Permission =
-  | 'bungalows:read'
-  | 'bungalows:create'
-  | 'bungalows:update'
-  | 'bungalows:update_status'
-  | 'bungalows:delete'
-  | 'reservations:read'
-  | 'reservations:write'
-  | 'clients:read'
-  | 'clients:write'
-  | 'maintenance:read'
-  | 'maintenance:write'
-  | 'reports:read'
-  | 'reports:write'
-  | 'users:read'
-  | 'users:write'
-  | 'settings:read'
-  | 'settings:write'
-  | 'billing:read'
-  | 'billing:write'
-  | 'communication:read'
-  | 'communication:write'
-  | 'loyalty:read'
-  | 'loyalty:write';
+export type Permission = 
+  | 'bungalows:read' | 'bungalows:create' | 'bungalows:update' | 'bungalows:delete' | 'bungalows:update_status'
+  | 'reservations:read' | 'reservations:write'
+  | 'clients:read' | 'clients:write'
+  | 'billing:read' | 'billing:write'
+  | 'loyalty:read' | 'loyalty:write'
+  | 'communication:read' | 'communication:write'
+  | 'maintenance:read' | 'maintenance:write'
+  | 'reports:read' | 'reports:write'
+  | 'users:read' | 'users:write'
+  | 'settings:read' | 'settings:write';
 
 export enum UserRole {
-  SuperAdmin = 'Super Administrateur',
-  Admin = 'Administrateur',
-  Manager = 'Manager',
-  Employee = 'Employé',
-}
-
-export type RolePermissions = Partial<Record<Permission, boolean>>;
-
-export interface RoleSetting {
-    roleName: UserRole;
-    permissions: RolePermissions;
+    SuperAdmin = 'Super Administrateur',
+    Admin = 'Administrateur',
+    Manager = 'Manager',
+    Employee = 'Employé'
 }
 
 export enum UserStatus {
     Active = 'Actif',
     Inactive = 'Inactif',
-    PendingActivation = 'En attente d\'activation',
+    PendingActivation = 'En attente'
 }
 
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  avatarUrl: string;
-  role: UserRole;
-  status: UserStatus;
-  permissions: Permission[];
-  lastLogin: string; // ISO date string
-  isOnline: boolean;
-}
-
-// Bungalows
-export enum BungalowStatus {
-  Available = 'Disponible',
-  Occupied = 'Occupé',
-  Cleaning = 'Nettoyage',
-  Maintenance = 'Maintenance',
-}
-
-export enum BungalowType {
-  Standard = 'Standard',
-  Deluxe = 'Deluxe',
-  Suite = 'Suite',
-  Family = 'Familial',
-}
-
-export interface Bungalow {
-  id: string;
-  name:string;
-  type: BungalowType;
-  status: BungalowStatus;
-  capacity: number;
-  pricePerNight: number;
-  amenities: string[];
-  imageUrl: string;
-  description: string;
-}
-
-// Clients
-export interface Client {
     id: string;
     name: string;
     email: string;
-    phone: string;
-    address?: string;
-    registrationDate: string; // ISO date string
-    loyaltyPoints: number;
+    phone?: string;
+    role: UserRole;
+    status: UserStatus;
+    avatarUrl: string;
+    lastLogin: string;
+    isOnline: boolean;
+    permissions: Permission[];
 }
 
-// Reservations
-export enum ReservationStatus {
-    Confirmed = 'Confirmée',
-    Pending = 'En attente',
-    Cancelled = 'Annulée',
+export interface GeneralSettings {
+    complexName: string;
+    logoUrl: string;
+    bungalowCount: number;
 }
 
-export interface Reservation {
-    id: string;
-    bungalowId: string;
-    clientId: string;
-    startDate: string; // ISO date string
-    endDate: string; // ISO date string
-    status: ReservationStatus;
-    totalPrice: number;
-}
-
-
-// Invoices
-export enum InvoiceStatus {
-    Paid = 'Payée',
-    Unpaid = 'Non payée',
-    Overdue = 'En retard',
-    Cancelled = 'Annulée',
-}
-
-export interface InvoiceItem {
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-}
-
-export interface Invoice {
-    id: string;
-    reservationId: string;
-    clientId: string;
-    issueDate: string; // ISO date string
-    dueDate: string; // ISO date string
-    totalAmount: number;
-    status: InvoiceStatus;
-    items: InvoiceItem[];
-}
-
-// Maintenance
-export enum MaintenanceStatus {
-    Pending = 'En attente',
-    InProgress = 'En cours',
-    Resolved = 'Résolu',
-    Cancelled = 'Annulé',
-}
-
-export enum MaintenancePriority {
-    Low = 'Basse',
-    Medium = 'Moyenne',
-    High = 'Haute',
-}
-
-export interface MaintenanceRequest {
-    id: string;
-    bungalowId: string;
-    description: string;
-    status: MaintenanceStatus;
-    priority: MaintenancePriority;
-    reportedBy: string; // Can be a user ID or a client name string
-    assignedToId?: string; // User ID
-    createdDate: string; // ISO date string
-    resolvedDate?: string; // ISO date string
-    resolutionDetails?: string;
-}
-
-// Communication
-export interface CommunicationLog {
-    id: string;
-    recipients: string[]; // Array of client IDs
-    subject: string;
-    body: string;
-    sentDate: string; // ISO date string
-    status: 'Envoyé' | 'Échoué' | 'En attente';
-    sentBy: string; // User ID
-}
-
-
-// Settings
 export enum Currency {
     DZD = 'DZD',
     EUR = 'EUR',
-    USD = 'USD',
+    USD = 'USD'
 }
 
 export interface FiscalInfo {
-    NIF: string;
-    NIS: string;
     RC: string;
-    AI: string;
+    NIF: string;
 }
 
-// Pricing Rules
 export enum PricingAdjustmentType {
-    PercentageDiscount = 'percentage_discount',
-    FixedDiscount = 'fixed_discount',
-    PercentageIncrease = 'percentage_increase',
-    FixedIncrease = 'fixed_increase',
-    SetPrice = 'set_price',
+    PercentageIncrease = 'PercentageIncrease',
+    FixedIncrease = 'FixedIncrease',
+    PercentageDiscount = 'PercentageDiscount',
+    FixedDiscount = 'FixedDiscount',
+    SetPrice = 'SetPrice',
 }
 
 export interface PricingRule {
-  id: string;
-  name: string;
-  adjustmentType: PricingAdjustmentType;
-  value: number;
-  daysOfWeek?: number[]; // 0 for Sunday, ..., 6 for Saturday
-  startDate?: string; // YYYY-MM-DD
-  endDate?: string;   // YYYY-MM-DD
-  bungalowTypeIds: string[]; // Array of bungalow type IDs. Empty array means applies to all.
+    id: string;
+    name: string;
+    adjustmentType: PricingAdjustmentType;
+    value: number;
+    daysOfWeek?: number[]; // 0 for Sunday, 6 for Saturday
+    bungalowTypeIds: string[]; // Empty array means applies to all
+    startDate?: string;
+    endDate?: string;
 }
 
 export interface FinancialSettings {
     currency: Currency;
     fiscalInfo: FiscalInfo;
     pricingRules: PricingRule[];
+}
+
+export interface PasswordPolicy {
+    minLength: number;
+    requireUppercase: boolean;
+    requireLowercase: boolean;
+    requireNumbers: boolean;
+    requireSymbols: boolean;
+}
+
+export interface TwoFactorAuthSettings {
+    enforced: boolean;
+}
+
+export interface SecuritySettings {
+    passwordPolicy: PasswordPolicy;
+    twoFactorAuth: TwoFactorAuthSettings;
 }
 
 export interface AmenitySetting {
@@ -260,69 +119,188 @@ export interface BungalowSettings {
     };
 }
 
+export type PermissionsMap = { [key in Permission]?: boolean };
+
+export interface RoleSetting {
+    roleName: UserRole;
+    permissions: PermissionsMap;
+}
+
 export interface LoyaltySettings {
     enabled: boolean;
     pointsPerNight: number;
     pointsForFirstReservation: number;
-    pointsToCurrencyValue: number; // e.g., 10, meaning 1 point = 10 DZD
+    pointsToCurrencyValue: number; // How many currency units one point is worth
 }
 
-// Loyalty Logs
+export interface LicenseSettings {
+    key: string;
+    status: 'Active' | 'Expired' | 'Trial';
+    expiresOn: string;
+}
+
+export interface Settings {
+    general: GeneralSettings;
+    financial: FinancialSettings;
+    security: SecuritySettings;
+    bungalows: BungalowSettings;
+    roles: RoleSetting[];
+    moduleStatus: { [key: string]: boolean };
+    loyalty: LoyaltySettings;
+    license: LicenseSettings;
+}
+
+export enum BungalowStatus {
+    Available = 'Disponible',
+    Occupied = 'Occupé',
+    Cleaning = 'Nettoyage',
+    Maintenance = 'Maintenance',
+}
+
+export enum BungalowType {
+    Standard = 'Standard',
+    Luxe = 'Luxe',
+    Familial = 'Familial',
+    Suite = 'Suite',
+}
+
+export interface Bungalow {
+    id: string;
+    name: string;
+    type: BungalowType;
+    status: BungalowStatus;
+    capacity: number;
+    pricePerNight: number;
+    amenities: string[];
+    imageUrl: string;
+    description: string;
+}
+
+export enum ReservationStatus {
+    Confirmed = 'Confirmée',
+    Pending = 'En attente',
+    Cancelled = 'Annulée'
+}
+
+export interface Reservation {
+    id: string;
+    bungalowId: string;
+    clientId: string;
+    startDate: string;
+    endDate: string;
+    status: ReservationStatus;
+    totalPrice: number;
+}
+
+export interface Client {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    address?: string;
+    registrationDate: string;
+    loyaltyPoints: number;
+}
+
+export enum MaintenanceStatus {
+    Pending = 'En attente',
+    InProgress = 'En cours',
+    Resolved = 'Résolu',
+    Cancelled = 'Annulé',
+}
+
+export enum MaintenancePriority {
+    Low = 'Basse',
+    Medium = 'Moyenne',
+    High = 'Haute',
+}
+
+export interface MaintenanceRequest {
+    id: string;
+    bungalowId: string;
+    description: string;
+    status: MaintenanceStatus;
+    priority: MaintenancePriority;
+    createdDate: string;
+    reportedBy: string;
+    assignedToId?: string;
+    resolvedDate?: string;
+    resolutionDetails?: string;
+}
+
+export enum NotificationType {
+    NewReservation,
+    UpcomingCheckIn,
+    OverdueInvoice,
+    MaintenanceAssigned,
+}
+
+export interface Notification {
+    id: string;
+    type: NotificationType;
+    message: string;
+    timestamp: string;
+    isRead: boolean;
+    relatedId?: string; // e.g., reservation ID or invoice ID
+}
+
+export interface AuditLog {
+    id: string;
+    user: { id: string, name: string };
+    action: string;
+    timestamp: string;
+    details: string;
+}
+
+export enum InvoiceStatus {
+    Paid = 'Payée',
+    Unpaid = 'Non Payée',
+    Overdue = 'En Retard',
+    Cancelled = 'Annulée',
+}
+
+export interface InvoiceItem {
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+}
+
+export interface Invoice {
+    id: string;
+    reservationId: string;
+    clientId: string;
+    issueDate: string;
+    dueDate: string;
+    totalAmount: number;
+    status: InvoiceStatus;
+    items: InvoiceItem[];
+}
+
+export interface CommunicationLog {
+    id: string;
+    recipients: string[]; // Array of client IDs
+    subject: string;
+    body: string;
+    sentDate: string;
+    status: 'Envoyé' | 'Échoué';
+    sentBy: string; // User ID
+}
+
 export enum LoyaltyLogType {
     Earned = 'Gagnés',
     Redeemed = 'Utilisés',
     ManualAdjustment = 'Ajustement manuel',
-    InitialBonus = 'Bonus initial',
+    InitialBonus = 'Bonus initial'
 }
 
 export interface LoyaltyLog {
     id: string;
     clientId: string;
     type: LoyaltyLogType;
-    pointsChange: number; // can be negative
+    pointsChange: number;
     reason: string;
-    relatedId?: string; // e.g., reservationId or invoiceId
-    timestamp: string; // ISO date string
-    adminUserId?: string; // For manual adjustments
-}
-
-export interface PasswordPolicy {
-    minLength: number;
-    requireUppercase: boolean;
-    requireLowercase: boolean;
-    requireNumbers: boolean;
-    requireSymbols: boolean;
-}
-
-export interface SecuritySettings {
-    passwordPolicy: PasswordPolicy;
-    twoFactorAuth: {
-        enforced: boolean;
-    };
-}
-
-export interface Settings {
-    general: {
-        complexName: string;
-        logoUrl: string;
-        bungalowCount: number;
-    };
-    financial: FinancialSettings;
-    bungalows: BungalowSettings;
-    security: SecuritySettings;
-    roles: RoleSetting[];
-    loyalty: LoyaltySettings;
-    moduleStatus: Record<string, boolean>;
-}
-
-// Audit Logs
-export interface AuditLog {
-  id: string;
-  user: {
-    id: string;
-    name: string;
-  };
-  action: string;
-  timestamp: string; // ISO date string
-  details?: string;
+    timestamp: string;
+    relatedId?: string; // e.g., reservation ID
+    adminUserId?: string;
 }

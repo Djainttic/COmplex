@@ -72,6 +72,7 @@ const ReportsPage: React.FC = () => {
                 const overlapEnd = new Date(Math.min(end.getTime(), resEnd.getTime()));
                 
                 if (overlapEnd > overlapStart) {
+                    // FIX: Use .getTime() for date arithmetic to prevent type errors.
                     const nights = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24));
                     totalBungalowNightsOccupied += nights;
                 }
@@ -88,7 +89,7 @@ const ReportsPage: React.FC = () => {
             const type = bungalowMap.get(r.bungalowId) || BungalowType.Standard;
             acc[type] = (acc[type] || 0) + r.totalPrice;
             return acc;
-        }, {} as Record<BungalowType, number>);
+        }, {} as Record<string, number>);
 
         const chartData = Object.entries(revenueByType)
             .map(([name, value]) => ({ name, value }))

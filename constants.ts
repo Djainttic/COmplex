@@ -1,4 +1,5 @@
-import { Bungalow, BungalowStatus, BungalowType, Permission, Client, Reservation, ReservationStatus, Invoice, InvoiceStatus, MaintenanceRequest, MaintenanceStatus, MaintenancePriority, User, UserRole, LoyaltyLog, LoyaltyLogType } from "./types";
+// constants.ts
+import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, UserRole, UserStatus, BungalowStatus, BungalowType, ReservationStatus, InvoiceStatus, MaintenanceStatus, MaintenancePriority, LoyaltyLog, LoyaltyLogType, User, Permission } from './types';
 
 export interface NavItem {
   path: string;
@@ -19,319 +20,109 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/rapports', label: 'Rapports', icon: 'chart', permission: 'reports:read' },
   { path: '/utilisateurs', label: 'Utilisateurs', icon: 'users', permission: 'users:read' },
   { path: '/parametres', label: 'Paramètres', icon: 'cog', permission: 'settings:read' },
-  { path: '/profil', label: 'Mon Profil', icon: 'users' },
+  // Profil is accessible by everyone
 ];
 
+
+// MOCK DATA
 export const MOCK_BUNGALOWS: Bungalow[] = [
-    {
-        id: 'bungalow-1',
-        name: 'Le Palmier Doré',
-        type: BungalowType.Deluxe,
-        status: BungalowStatus.Available,
-        capacity: 2,
-        pricePerNight: 18000,
-        amenities: ['Climatisation', 'Wi-Fi', 'Vue sur mer', 'Mini-bar'],
-        imageUrl: `https://i.ibb.co/6r1z0zY/syphax1.jpg`,
-        description: 'Idéal pour les couples, avec une vue magnifique sur la mer.'
-    },
-    {
-        id: 'bungalow-2',
-        name: 'L\'Oasis Familiale',
-        type: BungalowType.Standard,
-        status: BungalowStatus.Occupied,
-        capacity: 4,
-        pricePerNight: 22000,
-        amenities: ['Climatisation', 'Wi-Fi', 'Cuisine équipée'],
-        imageUrl: `https://i.ibb.co/L5k6Y6c/syphax2.jpg`,
-        description: 'Spacieux et parfait pour les familles, proche de la piscine.'
-    },
-    {
-        id: 'bungalow-3',
-        name: 'Suite "Le Corail"',
-        type: BungalowType.Suite,
-        status: BungalowStatus.Cleaning,
-        capacity: 2,
-        pricePerNight: 25000,
-        amenities: ['Climatisation', 'Wi-Fi', 'Jacuzzi privé', 'Service de chambre'],
-        imageUrl: `https://i.ibb.co/Ld1Dq9q/syphax3.jpg`,
-        description: 'Le luxe absolu pour une escapade romantique inoubliable.'
-    },
-    {
-        id: 'bungalow-4',
-        name: 'Bungalow "Le Pin"',
-        type: BungalowType.Family,
-        status: BungalowStatus.Available,
-        capacity: 6,
-        pricePerNight: 20000,
-        amenities: ['Climatisation', 'Wi-Fi', 'Deux chambres', 'Cuisine complète'],
-        imageUrl: `https://i.ibb.co/q0VvBCH/syphax4.jpg`,
-        description: 'Spacieux et confortable, idéal pour les grandes familles ou les groupes.'
-    },
-     {
-        id: 'bungalow-5',
-        name: 'Bungalow "La Vague"',
-        type: BungalowType.Standard,
-        status: BungalowStatus.Maintenance,
-        capacity: 2,
-        pricePerNight: 10000,
-        amenities: ['Climatisation', 'Wi-Fi'],
-        imageUrl: `https://i.ibb.co/6gG4q4J/syphax5.jpg`,
-        description: 'Un bungalow simple et confortable, parfait pour un court séjour.'
-    },
-     {
-        id: 'bungalow-6',
-        name: 'Bungalow "Le Sable"',
-        type: BungalowType.Deluxe,
-        status: BungalowStatus.Available,
-        capacity: 3,
-        pricePerNight: 16000,
-        amenities: ['Climatisation', 'Wi-Fi', 'Vue sur jardin', 'Terrasse privée'],
-        imageUrl: `https://i.ibb.co/LgQYd99/syphax6.jpg`,
-        description: 'Profitez de la tranquillité de notre jardin depuis votre terrasse privée.'
-    }
+  { id: 'bungalow-1', name: 'Le Palmier', type: BungalowType.Luxe, status: BungalowStatus.Occupied, capacity: 2, pricePerNight: 15000, amenities: ['Wi-Fi', 'Climatisation', 'Vue sur mer'], imageUrl: 'https://picsum.photos/seed/bungalow1/400/300', description: 'Un bungalow de luxe avec une vue imprenable.' },
+  { id: 'bungalow-2', name: 'La Pinède', type: BungalowType.Familial, status: BungalowStatus.Available, capacity: 4, pricePerNight: 18000, amenities: ['Wi-Fi', 'Climatisation', 'Cuisine équipée'], imageUrl: 'https://picsum.photos/seed/bungalow2/400/300', description: 'Idéal pour les familles, spacieux et confortable.' },
+  { id: 'bungalow-3', name: 'Le Cocon', type: BungalowType.Standard, status: BungalowStatus.Cleaning, capacity: 2, pricePerNight: 10000, amenities: ['Wi-Fi', 'Ventilateur'], imageUrl: 'https://picsum.photos/seed/bungalow3/400/300', description: 'Simple et cosy, parfait pour un couple.' },
+  { id: 'bungalow-4', name: 'Le Récif', type: BungalowType.Suite, status: BungalowStatus.Maintenance, capacity: 2, pricePerNight: 25000, amenities: ['Wi-Fi', 'Climatisation', 'Jacuzzi', 'Vue sur mer'], imageUrl: 'https://picsum.photos/seed/bungalow4/400/300', description: 'Notre meilleure suite pour une expérience inoubliable.' },
+  { id: 'bungalow-5', name: 'La Vague', type: BungalowType.Standard, status: BungalowStatus.Available, capacity: 2, pricePerNight: 11000, amenities: ['Wi-Fi', 'Climatisation'], imageUrl: 'https://picsum.photos/seed/bungalow5/400/300', description: 'Proche de la plage, avec le son des vagues.' },
+  { id: 'bungalow-6', name: 'Le Familial XL', type: BungalowType.Familial, status: BungalowStatus.Available, capacity: 6, pricePerNight: 22000, amenities: ['Wi-Fi', 'Climatisation', 'Cuisine équipée', '2 Chambres'], imageUrl: 'https://picsum.photos/seed/bungalow6/400/300', description: 'Pour les grandes familles ou les groupes d\'amis.' },
 ];
 
 export const MOCK_CLIENTS: Client[] = [
-    { id: 'client-1', name: 'Jean Dupont', email: 'jean.dupont@email.com', phone: '0612345678', address: '12 Rue de la Paix, 75002 Paris', registrationDate: new Date('2023-05-15T10:00:00Z').toISOString(), loyaltyPoints: 120 },
-    { id: 'client-2', name: 'Marie Curie', email: 'marie.curie@email.com', phone: '0687654321', address: '2 Place Jussieu, 75005 Paris', registrationDate: new Date('2024-01-20T14:30:00Z').toISOString(), loyaltyPoints: 450 },
-    { id: 'client-3', name: 'Albert Camus', email: 'albert.camus@email.com', phone: '0611223344', address: '5 Rue de Médéa, 16000 Alger', registrationDate: new Date('2024-06-10T09:00:00Z').toISOString(), loyaltyPoints: 50 },
+  { id: 'client-1', name: 'Jean Dupont', email: 'jean.dupont@email.com', phone: '0612345678', address: '1 rue de la Paix, Paris', registrationDate: '2023-01-15T10:00:00Z', loyaltyPoints: 150 },
+  { id: 'client-2', name: 'Marie Curie', email: 'marie.curie@email.com', phone: '0687654321', address: '2 avenue des Sciences, Lyon', registrationDate: '2023-03-20T14:30:00Z', loyaltyPoints: 320 },
+  { id: 'client-3', name: 'Albert Camus', email: 'albert.camus@email.com', phone: '0700112233', registrationDate: '2023-05-10T11:00:00Z', loyaltyPoints: 50 },
 ];
 
 export const MOCK_RESERVATIONS: Reservation[] = [
-    {
-        id: 'res-1', bungalowId: 'bungalow-1', clientId: 'client-1',
-        startDate: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString(),
-        endDate: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString(),
-        status: ReservationStatus.Confirmed, totalPrice: 45000
-    },
-    {
-        id: 'res-2', bungalowId: 'bungalow-2', clientId: 'client-2',
-        startDate: new Date().toISOString(),
-        endDate: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString(),
-        status: ReservationStatus.Confirmed, totalPrice: 48000
-    },
-    {
-        id: 'res-3', bungalowId: 'bungalow-4', clientId: 'client-1',
-        startDate: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString(),
-        endDate: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString(),
-        status: ReservationStatus.Confirmed, totalPrice: 100000
-    },
-    {
-        id: 'res-4', bungalowId: 'bungalow-5', clientId: 'client-3',
-        startDate: new Date(new Date().setDate(new Date().getDate() - 3)).toISOString(),
-        endDate: new Date().toISOString(),
-        status: ReservationStatus.Confirmed, totalPrice: 20000
-    },
-    {
-        id: 'res-5', bungalowId: 'bungalow-3', clientId: 'client-2',
-        startDate: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(),
-        endDate: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
-        status: ReservationStatus.Pending, totalPrice: 75000
-    }
+  { id: 'res-1', bungalowId: 'bungalow-1', clientId: 'client-1', startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), status: ReservationStatus.Confirmed, totalPrice: 75000 },
+  { id: 'res-2', bungalowId: 'bungalow-3', clientId: 'client-2', startDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), endDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(), status: ReservationStatus.Pending, totalPrice: 30000 },
+  { id: 'res-3', bungalowId: 'bungalow-2', clientId: 'client-3', startDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), endDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(), status: ReservationStatus.Confirmed, totalPrice: 90000 },
+  { id: 'res-4', bungalowId: 'bungalow-2', clientId: 'client-1', startDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), endDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), status: ReservationStatus.Confirmed, totalPrice: 90000 },
 ];
 
 export const MOCK_INVOICES: Invoice[] = [
-    {
-        id: 'INV-2024-001',
-        reservationId: 'res-1',
-        clientId: 'client-1',
-        issueDate: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(),
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 13)).toISOString(),
-        totalAmount: 45000,
-        status: InvoiceStatus.Unpaid,
-        items: [
-            {
-                description: 'Séjour Bungalow "Le Palmier" (3 nuits)',
-                quantity: 3,
-                unitPrice: 15000,
-                total: 45000
-            }
-        ]
-    },
-    {
-        id: 'INV-2024-002',
-        reservationId: 'res-3',
-        clientId: 'client-1',
-        issueDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString(),
-        totalAmount: 105000,
-        status: InvoiceStatus.Paid,
-        items: [
-            {
-                description: 'Séjour Bungalow "Le Pin" (5 nuits)',
-                quantity: 5,
-                unitPrice: 20000,
-                total: 100000
-            },
-            {
-                description: 'Taxe de séjour',
-                quantity: 1,
-                unitPrice: 5000,
-                total: 5000
-            }
-        ]
-    },
-     {
-        id: 'INV-2024-003',
-        reservationId: 'res-2', // This is a pending reservation, but let's imagine an invoice was made
-        clientId: 'client-2',
-        issueDate: new Date(new Date().setDate(new Date().getDate() - 20)).toISOString(),
-        dueDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
-        totalAmount: 48000,
-        status: InvoiceStatus.Overdue,
-        items: [
-            {
-                description: 'Séjour Bungalow "L\'Olivier" (4 nuits)',
-                quantity: 4,
-                unitPrice: 12000,
-                total: 48000
-            }
-        ]
-    },
-    {
-        id: 'INV-2024-004',
-        reservationId: 'res-5',
-        clientId: 'client-2',
-        issueDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(),
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
-        totalAmount: 75000,
-        status: InvoiceStatus.Cancelled,
-        items: [
-            {
-                description: 'Séjour Suite "Le Corail" (3 nuits)',
-                quantity: 3,
-                unitPrice: 25000,
-                total: 75000
-            }
-        ]
-    }
+  { id: 'INV-2024-001', reservationId: 'res-4', clientId: 'client-1', issueDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), totalAmount: 90000, status: InvoiceStatus.Paid, items: [{ description: 'Séjour 5 nuits', quantity: 5, unitPrice: 18000, total: 90000 }] },
+  { id: 'INV-2024-002', reservationId: 'res-1', clientId: 'client-1', issueDate: new Date().toISOString(), dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(), totalAmount: 75000, status: InvoiceStatus.Unpaid, items: [{ description: 'Séjour 5 nuits', quantity: 5, unitPrice: 15000, total: 75000 }] },
+  { id: 'INV-2024-003', reservationId: 'res-2', clientId: 'client-2', issueDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(), dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), totalAmount: 30000, status: InvoiceStatus.Overdue, items: [{ description: 'Séjour 3 nuits', quantity: 3, unitPrice: 10000, total: 30000 }] },
 ];
 
 export const MOCK_MAINTENANCE_REQUESTS: MaintenanceRequest[] = [
-    {
-        id: 'maint-1',
-        bungalowId: 'bungalow-5', // "La Vague" which is already in Maintenance status
-        description: 'Le robinet de la salle de bain fuit.',
-        status: MaintenanceStatus.InProgress,
-        priority: MaintenancePriority.Medium,
-        reportedBy: 'Eric Employé',
-        assignedToId: 'user-manager', // Marie Manager
-        createdDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-        id: 'maint-2',
-        bungalowId: 'bungalow-3', // Suite "Le Corail"
-        description: 'L\'ampoule de la terrasse est grillée.',
-        status: MaintenanceStatus.Pending,
-        priority: MaintenancePriority.Low,
-        reportedBy: 'Client: Albert Camus',
-        createdDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-        id: 'maint-3',
-        bungalowId: 'bungalow-2', // "L'Olivier"
-        description: 'Problème avec la climatisation, ne refroidit plus.',
-        status: MaintenanceStatus.Resolved,
-        priority: MaintenancePriority.High,
-        reportedBy: 'Marie Manager',
-        assignedToId: 'user-employee',
-        createdDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        resolvedDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-        resolutionDetails: 'Le filtre à air a été nettoyé et le gaz rechargé.'
-    }
+  { id: 'maint-1', bungalowId: 'bungalow-4', description: 'Jacuzzi ne chauffe pas.', status: MaintenanceStatus.InProgress, priority: MaintenancePriority.High, createdDate: '2023-06-01T09:00:00Z', reportedBy: 'Client', assignedToId: 'user-employee' },
+  { id: 'maint-2', bungalowId: 'bungalow-5', description: 'Climatiseur fait du bruit.', status: MaintenanceStatus.Pending, priority: MaintenancePriority.Medium, createdDate: '2023-06-02T14:00:00Z', reportedBy: 'Personnel de nettoyage', assignedToId: 'user-employee' },
+  { id: 'maint-3', bungalowId: 'bungalow-2', description: 'Ampoule grillée dans la salle de bain.', status: MaintenanceStatus.Resolved, priority: MaintenancePriority.Low, createdDate: '2023-05-28T18:00:00Z', reportedBy: 'Client', assignedToId: 'user-employee', resolvedDate: '2023-05-29T10:00:00Z', resolutionDetails: 'Ampoule remplacée.' },
 ];
 
 export const MOCK_LOYALTY_LOGS: LoyaltyLog[] = [
-    {
-        id: 'log-1',
-        clientId: 'client-2',
-        type: LoyaltyLogType.Earned,
-        pointsChange: 40,
-        reason: 'Séjour',
-        relatedId: 'res-2',
-        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-        id: 'log-2',
-        clientId: 'client-1',
-        type: LoyaltyLogType.ManualAdjustment,
-        pointsChange: 50,
-        reason: 'Geste commercial suite à un problème de climatisation',
-        timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        adminUserId: 'user-manager',
-    },
-    {
-        id: 'log-3',
-        clientId: 'client-2',
-        type: LoyaltyLogType.InitialBonus,
-        pointsChange: 50,
-        reason: 'Bonus de première réservation',
-        timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        relatedId: 'res-initial'
-    },
+    { id: 'log-1', clientId: 'client-1', type: LoyaltyLogType.Earned, pointsChange: 100, reason: 'Séjour de 5 nuits', timestamp: '2023-01-20T12:00:00Z', relatedId: 'res-4' },
+    { id: 'log-2', clientId: 'client-1', type: LoyaltyLogType.InitialBonus, pointsChange: 50, reason: 'Bonus de première réservation', timestamp: '2023-01-20T12:00:00Z', relatedId: 'res-4' },
+    { id: 'log-3', clientId: 'client-2', type: LoyaltyLogType.ManualAdjustment, pointsChange: 20, reason: 'Geste commercial', timestamp: '2023-04-01T10:00:00Z', adminUserId: 'user-admin' },
 ];
 
-export const formatDateDDMMYYYY = (date: string | Date | null | undefined): string => {
-    if (!date) return '';
-    try {
-        const d = new Date(date);
-        if (isNaN(d.getTime())) return ''; // Invalid date check
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return `${day}/${month}/${year}`;
-    } catch (e) {
-        return '';
-    }
+
+// HELPER FUNCTIONS
+export const formatDateDDMMYYYY = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-export const formatDateTimeDDMMYYYY = (date: string | Date | null | undefined): string => {
-    if (!date) return '';
-    try {
-        const d = new Date(date);
-        if (isNaN(d.getTime())) return ''; // Invalid date check
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        return `${day}/${month}/${year} à ${hours}h${minutes}`;
-    } catch (e) {
-        return '';
-    }
+export const formatDateTimeDDMMYYYY = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-
-export const formatTimeAgo = (isoDate: string): string => {
-    const date = new Date(isoDate);
+export const formatTimeAgo = (dateString: string): string => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
     const now = new Date();
-    const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
-    const minutes = Math.round(seconds / 60);
-    const hours = Math.round(minutes / 60);
-    const days = Math.round(hours / 24);
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (seconds < 60) return "à l'instant";
-    if (minutes < 60) return `il y a ${minutes} min`;
-    if (hours < 24) return `il y a ${hours} h`;
-    if (days <= 7) return `il y a ${days} j`;
-    return formatDateDDMMYYYY(date);
+    let interval = seconds / 31536000;
+    if (interval > 1) return `il y a ${Math.floor(interval)} an(s)`;
+    interval = seconds / 2592000;
+    if (interval > 1) return `il y a ${Math.floor(interval)} mois`;
+    interval = seconds / 86400;
+    if (interval > 1) return `il y a ${Math.floor(interval)} jour(s)`;
+    interval = seconds / 3600;
+    if (interval > 1) return `il y a ${Math.floor(interval)} heure(s)`;
+    interval = seconds / 60;
+    if (interval > 1) return `il y a ${Math.floor(interval)} minute(s)`;
+    return "à l'instant";
 };
 
-const ROLE_HIERARCHY: UserRole[] = [
-  UserRole.Employee,
-  UserRole.Manager,
-  UserRole.Admin,
-  UserRole.SuperAdmin,
-];
 
+/**
+ * Determines which users an authenticated user can see or assign tasks to.
+ * - SuperAdmin sees everyone.
+ * - Admin sees everyone except SuperAdmins.
+ * - Manager sees their own employees and themselves.
+ * - Employee sees only themselves.
+ * @param currentUser The currently logged-in user.
+ * @param allUsers The complete list of users.
+ * @returns A filtered array of visible users.
+ */
 export const getVisibleUsers = (currentUser: User | null, allUsers: User[]): User[] => {
-  if (!currentUser) return [];
+    if (!currentUser) return [];
 
-  const currentUserLevel = ROLE_HIERARCHY.indexOf(currentUser.role);
-  if (currentUserLevel === -1) return []; // Should not happen
-
-  return allUsers.filter(user => {
-    const userLevel = ROLE_HIERARCHY.indexOf(user.role);
-    return userLevel <= currentUserLevel;
-  });
+    switch (currentUser.role) {
+        case UserRole.SuperAdmin:
+            return allUsers;
+        case UserRole.Admin:
+            return allUsers.filter(user => user.role !== UserRole.SuperAdmin);
+        case UserRole.Manager:
+            // Example: A manager can see other managers and all employees.
+            return allUsers.filter(user => user.role === UserRole.Manager || user.role === UserRole.Employee);
+        case UserRole.Employee:
+            return allUsers.filter(user => user.id === currentUser.id);
+        default:
+            return [];
+    }
 };

@@ -1,345 +1,151 @@
 // hooks/useAuth.tsx
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { User, Permission, Settings, UserRole, UserStatus, Currency, BungalowType, RoleSetting, RolePermissions, PricingAdjustmentType } from '../types';
+import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import { User, Settings, UserRole, UserStatus, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType } from '../types';
 
-const ALL_PERMISSIONS: Permission[] = [
-    'bungalows:read', 'bungalows:create', 'bungalows:update', 'bungalows:update_status', 'bungalows:delete',
-    'reservations:read', 'reservations:write',
-    'clients:read', 'clients:write',
-    'maintenance:read', 'maintenance:write',
-    'reports:read', 'reports:write',
-    'users:read', 'users:write',
-    'settings:read', 'settings:write',
-    'billing:read', 'billing:write',
-    'communication:read', 'communication:write',
-    'loyalty:read', 'loyalty:write',
+// This is a simplified mock of a backend.
+const MOCK_USERS: User[] = [
+    { id: 'user-superadmin', name: 'Syphax Admin', email: 'superadmin@bungalow.dz', role: UserRole.SuperAdmin, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/superadmin/200', lastLogin: new Date().toISOString(), isOnline: true, permissions: [] },
+    { id: 'user-admin', name: 'Amine Admin', email: 'admin_syphax@bungalow.dz', role: UserRole.Admin, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/admin/200', lastLogin: new Date().toISOString(), isOnline: true, permissions: [] },
+    { id: 'user-manager', name: 'Fatima Manager', email: 'manager@bungalow.dz', role: UserRole.Manager, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/manager/200', lastLogin: new Date().toISOString(), isOnline: false, permissions: [] },
+    { id: 'user-employee', name: 'Karim Employé', email: 'employee@bungalow.dz', role: UserRole.Employee, status: UserStatus.Active, avatarUrl: 'https://picsum.photos/seed/employee/200', lastLogin: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), isOnline: true, permissions: [] },
 ];
 
-const MOCK_ROLES: RoleSetting[] = [
-    {
-        roleName: UserRole.SuperAdmin,
-        permissions: ALL_PERMISSIONS.reduce((acc, perm) => ({ ...acc, [perm]: true }), {})
-    },
-    {
-        roleName: UserRole.Admin,
-        permissions: {
-            'bungalows:read': true, 'bungalows:create': true, 'bungalows:update': true, 'bungalows:update_status': true, 'bungalows:delete': true,
-            'reservations:read': true, 'reservations:write': true,
-            'clients:read': true, 'clients:write': true,
-            'maintenance:read': true, 'maintenance:write': true,
-            'reports:read': true, 'reports:write': true,
-            'users:read': true, 'users:write': true,
-            'billing:read': true, 'billing:write': true,
-            'communication:read': true, 'communication:write': true,
-            'loyalty:read': true, 'loyalty:write': true,
-            'settings:read': true, 
-            'settings:write': false // Admins can see settings but not change them.
-        }
-    },
-    {
-        roleName: UserRole.Manager,
-        permissions: {
-            'bungalows:read': true, 'bungalows:create': true, 'bungalows:update': true, 'bungalows:update_status': true, 'bungalows:delete': false,
-            'reservations:read': true, 'reservations:write': true,
-            'clients:read': true, 'clients:write': true,
-            'maintenance:read': true, 'maintenance:write': true,
-            'reports:read': true, 'reports:write': false,
-            'billing:read': true, 'billing:write': true,
-            'communication:read': true, 'communication:write': true,
-            'loyalty:read': true, 'loyalty:write': true,
-            'users:read': true, 'users:write': false,
-            'settings:read': true, 'settings:write': false,
-        }
-    },
-    {
-        roleName: UserRole.Employee,
-        permissions: {
-            'bungalows:read': true, 'bungalows:create': false, 'bungalows:update': false, 'bungalows:update_status': true, 'bungalows:delete': false,
-            'reservations:read': true, 'reservations:write': false,
-            'clients:read': true, 'clients:write': false,
-            'maintenance:read': true, 'maintenance:write': false,
-            'reports:read': false, 'reports:write': false,
-            'billing:read': true, 'billing:write': false,
-            'communication:read': true, 'communication:write': false,
-            'loyalty:read': true, 'loyalty:write': false,
-            'users:read': false, 'users:write': false,
-            'settings:read': false, 'settings:write': false,
-        }
-    }
-];
-
-const getPermissionsForRole = (role: UserRole): Permission[] => {
-    const roleSetting = MOCK_ROLES.find(r => r.roleName === role);
-    if (!roleSetting) return [];
-    return Object.entries(roleSetting.permissions)
-        .filter(([, hasPermission]) => hasPermission)
-        .map(([permission]) => permission as Permission);
-};
-
-const MOCK_ALL_USERS: User[] = [
-    {
-        id: 'user-superadmin',
-        name: 'djalalttl',
-        email: 'djalalttl@bungalow.dz',
-        phone: '0555000000',
-        avatarUrl: 'https://i.pravatar.cc/150?u=djalalttl',
-        role: UserRole.SuperAdmin,
-        status: UserStatus.Active,
-        permissions: getPermissionsForRole(UserRole.SuperAdmin),
-        lastLogin: new Date().toISOString(),
-        isOnline: true,
-    },
-    {
-        id: 'user-admin',
-        name: 'admin_syphax',
-        email: 'admin_syphax@bungalow.dz',
-        phone: '0555123456',
-        avatarUrl: 'https://i.pravatar.cc/150?u=admin_syphax',
-        role: UserRole.Admin,
-        status: UserStatus.Active,
-        permissions: getPermissionsForRole(UserRole.Admin),
-        lastLogin: new Date().toISOString(),
-        isOnline: false,
-    },
-    {
-        id: 'user-manager',
-        name: 'Marie Manager',
-        email: 'marie.m@bungalow.dz',
-        avatarUrl: 'https://i.pravatar.cc/150?u=manager',
-        role: UserRole.Manager,
-        status: UserStatus.Active,
-        permissions: getPermissionsForRole(UserRole.Manager),
-        lastLogin: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        isOnline: false,
-    },
-    {
-        id: 'user-employee',
-        name: 'Eric Employé',
-        email: 'eric.e@bungalow.dz',
-        avatarUrl: 'https://i.pravatar.cc/150?u=employee',
-        role: UserRole.Employee,
-        status: UserStatus.Inactive,
-        permissions: getPermissionsForRole(UserRole.Employee),
-        lastLogin: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        isOnline: false,
-    }
-];
-
-const MOCK_SETTINGS: Settings = {
+const DEFAULT_SETTINGS: Settings = {
     general: {
-        complexName: 'SYPHAX, village touristique',
-        logoUrl: 'https://i.ibb.co/2d9y22T/syphax-logo.png',
-        bungalowCount: 12,
+        complexName: 'Bungalow Syphax',
+        logoUrl: '/logo.png',
+        bungalowCount: 6,
     },
     financial: {
         currency: Currency.DZD,
-        fiscalInfo: {
-            NIF: '123456789012345',
-            NIS: '1234567890123456',
-            RC: '16/00-1234567 A 23',
-            AI: '123456789012345'
-        },
+        fiscalInfo: { RC: 'RC/ALGER/2024/A/12345', NIF: '001234567890123' },
         pricingRules: [
-            {
-                id: 'rule-weekend',
-                name: 'Majoration Week-end',
-                adjustmentType: PricingAdjustmentType.PercentageIncrease,
-                value: 20, // +20%
-                daysOfWeek: [5, 6], // Friday, Saturday
-                bungalowTypeIds: [], // Applies to all types
-            },
-            {
-                id: 'rule-weekday-discount',
-                name: 'Réduction Semaine',
-                adjustmentType: PricingAdjustmentType.PercentageDiscount,
-                value: 10, // -10%
-                daysOfWeek: [0, 1, 2, 3, 4], // Sunday to Thursday
-                bungalowTypeIds: ['type-1', 'type-2'], // Only for Standard and Deluxe
-            },
-            {
-                id: 'rule-summer',
-                name: 'Haute Saison (Juillet-Août)',
-                adjustmentType: PricingAdjustmentType.PercentageIncrease,
-                value: 30, // +30%
-                startDate: `${new Date().getFullYear()}-07-01`,
-                endDate: `${new Date().getFullYear()}-08-31`,
-                bungalowTypeIds: [], // Applies to all
-            }
-        ]
+            { id: 'rule-1', name: 'Weekend Surcharge', adjustmentType: PricingAdjustmentType.PercentageIncrease, value: 20, daysOfWeek: [5, 6], bungalowTypeIds: [] },
+            { id: 'rule-2', name: 'Summer High Season', adjustmentType: PricingAdjustmentType.FixedIncrease, value: 5000, bungalowTypeIds: [], startDate: '2024-07-01', endDate: '2024-08-31' },
+        ],
+    },
+    security: {
+        passwordPolicy: { minLength: 8, requireUppercase: true, requireLowercase: true, requireNumbers: true, requireSymbols: false },
+        twoFactorAuth: { enforced: false },
     },
     bungalows: {
         types: [
-            { id: 'type-1', name: BungalowType.Standard, capacity: 2, defaultPrice: 10000, amenities: ['Wi-Fi', 'Climatisation'], description: 'Simple et confortable.' },
-            { id: 'type-2', name: BungalowType.Deluxe, capacity: 2, defaultPrice: 15000, amenities: ['Wi-Fi', 'Climatisation', 'Vue sur mer'], description: 'Plus d\'espace et une vue magnifique.' },
-            { id: 'type-3', name: BungalowType.Suite, capacity: 4, defaultPrice: 25000, amenities: ['Wi-Fi', 'Climatisation', 'Jacuzzi', 'Service de chambre'], description: 'Luxe et confort absolus.' },
-            { id: 'type-4', name: BungalowType.Family, capacity: 6, defaultPrice: 20000, amenities: ['Wi-Fi', 'Climatisation', 'Cuisine équipée'], description: 'Idéal pour les familles.' },
+            { id: 'type-1', name: BungalowType.Standard, capacity: 2, defaultPrice: 10000, amenities: ['Wi-Fi'], description: 'Simple et confortable.' },
+            { id: 'type-2', name: BungalowType.Luxe, capacity: 2, defaultPrice: 15000, amenities: ['Wi-Fi', 'Climatisation', 'Vue sur mer'], description: 'Luxe et vue imprenable.' },
+            { id: 'type-3', name: BungalowType.Familial, capacity: 4, defaultPrice: 18000, amenities: ['Wi-Fi', 'Climatisation', 'Cuisine'], description: 'Spacieux pour les familles.' },
+            { id: 'type-4', name: BungalowType.Suite, capacity: 2, defaultPrice: 25000, amenities: ['Wi-Fi', 'Climatisation', 'Jacuzzi'], description: 'Le meilleur du confort.' },
         ],
         allAmenities: [
-            { id: 'amenity-1', name: 'Wi-Fi' },
-            { id: 'amenity-2', name: 'Climatisation' },
-            { id: 'amenity-3', name: 'Vue sur mer' },
-            { id: 'amenity-4', name: 'Cuisine équipée' },
-            { id: 'amenity-5', name: 'Jacuzzi privé' },
-            { id: 'amenity-6', name: 'Service de chambre' },
-            { id: 'amenity-7', name: 'Mini-bar' },
-            { id: 'amenity-8', name: 'Terrasse privée' },
+            { id: 'amenity-1', name: 'Wi-Fi' }, { id: 'amenity-2', name: 'Climatisation' }, { id: 'amenity-3', name: 'Vue sur mer' }, { id: 'amenity-4', name: 'Cuisine équipée' }, { id: 'amenity-5', name: 'Jacuzzi' }, { id: 'amenity-6', name: '2 Chambres' },
         ],
-        automation: {
-            enableAutoCleaning: true,
-        }
+        automation: { enableAutoCleaning: true }
     },
-    security: {
-        passwordPolicy: {
-            minLength: 8,
-            requireUppercase: true,
-            requireLowercase: true,
-            requireNumbers: true,
-            requireSymbols: false,
-        },
-        twoFactorAuth: {
-            enforced: false,
-        }
+    roles: [
+        { roleName: UserRole.SuperAdmin, permissions: {} }, // SuperAdmin permissions are hardcoded to all
+        { roleName: UserRole.Admin, permissions: { 'bungalows:read': true, 'bungalows:create': true, 'bungalows:update': true, 'bungalows:delete': true, 'bungalows:update_status': true, 'reservations:read': true, 'reservations:write': true, 'clients:read': true, 'clients:write': true, 'billing:read': true, 'billing:write': true, 'loyalty:read': true, 'loyalty:write': true, 'communication:read': true, 'communication:write': true, 'maintenance:read': true, 'maintenance:write': true, 'reports:read': true, 'reports:write': true, 'users:read': true, 'users:write': true, 'settings:read': true, 'settings:write': true } },
+        { roleName: UserRole.Manager, permissions: { 'bungalows:read': true, 'bungalows:update_status': true, 'reservations:read': true, 'reservations:write': true, 'clients:read': true, 'clients:write': true, 'billing:read': true, 'maintenance:read': true, 'maintenance:write': true, 'reports:read': true } },
+        { roleName: UserRole.Employee, permissions: { 'bungalows:read': true, 'bungalows:update_status': true, 'reservations:read': true, 'maintenance:read': true } },
+    ],
+    moduleStatus: { // true by default
+        'bungalows': true, 'reservations': true, 'clients': true, 'facturation': true, 'fidelite': true, 'communication': true, 'maintenance': true, 'rapports': true, 'utilisateurs': true,
     },
-    roles: MOCK_ROLES,
-    loyalty: {
-        enabled: true,
-        pointsPerNight: 10,
-        pointsForFirstReservation: 50,
-        pointsToCurrencyValue: 10, // 1 point = 10 DZD
-    },
-    moduleStatus: {
-        dashboard: true,
-        bungalows: true,
-        reservations: true,
-        clients: true,
-        facturation: true,
-        communication: true,
-        maintenance: true,
-        rapports: true,
-        utilisateurs: true,
-        parametres: true,
-        fidelite: true,
+    loyalty: { enabled: true, pointsPerNight: 10, pointsForFirstReservation: 50, pointsToCurrencyValue: 5 },
+    license: { key: 'BUNG-ALGER-2024-XXXX-XXXX', status: 'Active', expiresOn: '2025-12-31T23:59:59Z' },
+};
+
+
+// Helper to get user from localStorage
+const getInitialUser = (): User | null => {
+    try {
+        const item = window.localStorage.getItem('currentUser');
+        return item ? JSON.parse(item) : null;
+    } catch (error) {
+        return null;
     }
 };
 
 interface AuthContextType {
     currentUser: User | null;
     allUsers: User[];
-    settings: Settings;
-    hasPermission: (permission: Permission | Permission[]) => boolean;
-    updateUser: (user: User) => void;
-    addUser: (user: Omit<User, 'id' | 'permissions' | 'lastLogin' | 'isOnline' | 'avatarUrl'>) => User;
-    deleteUser: (userId: string) => void;
-    updateSettings: (newSettings: Settings) => void;
-    login: (email: string, password?: string) => Promise<boolean>;
+    login: (email: string, pass: string) => Promise<boolean>;
     logout: () => void;
+    updateUser: (user: User) => void;
+    addUser: (user: User) => void;
+    deleteUser: (userId: string) => void;
+    hasPermission: (permission: Permission | Permission[]) => boolean;
+    settings: Settings;
+    updateSettings: (newSettings: Settings) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [allUsers, setAllUsers] = useState<User[]>(MOCK_ALL_USERS);
-    const [settings, setSettings] = useState<Settings>(MOCK_SETTINGS);
+    const [currentUser, setCurrentUser] = useState<User | null>(getInitialUser);
+    const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+    const [allUsers, setAllUsers] = useState<User[]>(MOCK_USERS);
 
-    const login = async (email: string, password?: string): Promise<boolean> => {
-        // Password is not checked in this mock implementation
-        const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const login = async (email: string, pass: string): Promise<boolean> => {
+        // This is a mock login. In a real app, you'd call an API.
+        const user = allUsers.find(u => u.email === email);
         if (user) {
-            const loggedInUser = { ...user, isOnline: true, lastLogin: new Date().toISOString() };
-            setCurrentUser(loggedInUser);
-            setAllUsers(prev => prev.map(u => u.id === user.id ? loggedInUser : u));
+            setCurrentUser(user);
+            window.localStorage.setItem('currentUser', JSON.stringify(user));
             return true;
         }
         return false;
     };
 
     const logout = () => {
-        if (currentUser) {
-            const loggedOutUser = { ...currentUser, isOnline: false };
-            setAllUsers(prev => prev.map(u => u.id === currentUser.id ? loggedOutUser : u));
-            setCurrentUser(null);
-        }
+        setCurrentUser(null);
+        window.localStorage.removeItem('currentUser');
     };
 
-    const hasPermission = (permission: Permission | Permission[]): boolean => {
-        if (!currentUser) return false;
-        if (currentUser.role === UserRole.SuperAdmin) return true; // SuperAdmin bypasses all checks
-        const userPermissions = new Set(currentUser.permissions);
-        if (Array.isArray(permission)) {
-            return permission.every(p => userPermissions.has(p));
-        }
-        return userPermissions.has(permission);
-    };
-
-    const updateUser = (updatedUser: User) => {
-        setAllUsers(prevUsers => prevUsers.map(u => u.id === updatedUser.id ? updatedUser : u));
-        if (currentUser && currentUser.id === updatedUser.id) {
-            setCurrentUser(updatedUser);
+    const updateUser = (user: User) => {
+        setAllUsers(prev => prev.map(u => u.id === user.id ? user : u));
+        if (currentUser?.id === user.id) {
+            setCurrentUser(user);
+            window.localStorage.setItem('currentUser', JSON.stringify(user));
         }
     };
-
-    const addUser = (userData: Omit<User, 'id' | 'permissions' | 'lastLogin' | 'isOnline' | 'avatarUrl'>): User => {
-        const newUser: User = {
-            ...userData,
-            id: `user-${Date.now()}`,
-            avatarUrl: `https://i.pravatar.cc/150?u=${userData.email}`,
-            permissions: getPermissionsForRole(userData.role),
-            lastLogin: new Date().toISOString(),
-            isOnline: false,
-        };
-        setAllUsers(prev => [...prev, newUser]);
-        return newUser;
+    
+    const addUser = (user: User) => {
+        setAllUsers(prev => [...prev, user]);
     };
 
     const deleteUser = (userId: string) => {
         setAllUsers(prev => prev.filter(u => u.id !== userId));
     };
-    
+
     const updateSettings = (newSettings: Settings) => {
-        // Propagate role changes to all users if roles have been updated
-        if (JSON.stringify(newSettings.roles) !== JSON.stringify(settings.roles)) {
-            const rolePermsMap = new Map(newSettings.roles.map(r => [r.roleName, r.permissions]));
-
-            const updatedUsers = allUsers.map(user => {
-                const newPermsObject = rolePermsMap.get(user.role);
-                if (newPermsObject) {
-                    const userPermissions = Object.entries(newPermsObject)
-                        .filter(([, hasPerm]) => hasPerm)
-                        .map(([perm]) => perm as Permission);
-                    return { ...user, permissions: userPermissions };
-                }
-                return user;
-            });
-            setAllUsers(updatedUsers);
-
-            // Also update current user's permissions if they are logged in
-            if (currentUser) {
-                const newPermsObject = rolePermsMap.get(currentUser.role);
-                if (newPermsObject) {
-                    const userPermissions = Object.entries(newPermsObject)
-                        .filter(([, hasPerm]) => hasPerm)
-                        .map(([perm]) => perm as Permission);
-                    setCurrentUser(prev => prev ? { ...prev, permissions: userPermissions } : null);
-                }
-            }
-        }
-        
         setSettings(newSettings);
-        console.log("Settings updated:", newSettings);
+        // In a real app, you'd save this to a backend.
     };
+
+    const hasPermission = useMemo(() => (requiredPermission: Permission | Permission[]): boolean => {
+        if (!currentUser) return false;
+        if (currentUser.role === UserRole.SuperAdmin) return true;
+
+        const roleSettings = settings.roles.find(r => r.roleName === currentUser.role);
+        if (!roleSettings) return false;
+        
+        const permissionsToCheck = Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission];
+
+        return permissionsToCheck.every(p => roleSettings.permissions[p]);
+
+    }, [currentUser, settings.roles]);
+
 
     const value = {
         currentUser,
         allUsers,
-        settings,
-        hasPermission,
+        login,
+        logout,
         updateUser,
         addUser,
         deleteUser,
-        updateSettings,
-        login,
-        logout,
+        hasPermission,
+        settings,
+        updateSettings
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

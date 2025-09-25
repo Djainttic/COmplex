@@ -1,26 +1,29 @@
-import React, { useState } from 'react';
-import { User } from '../../types';
+// components/pages/UsersPage.tsx
+import React, { useState, useMemo } from 'react';
+import { User, UserRole, UserStatus } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import UserTable from '../users/UserTable';
 import UserFormModal from '../users/UserFormModal';
+import Button from '../ui/Button';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import UserCreationSuccessModal from '../users/UserCreationSuccessModal';
-import Button from '../ui/Button';
 import { getVisibleUsers } from '../../constants';
 
 const UsersPage: React.FC = () => {
-    const { currentUser, hasPermission, allUsers, updateUser, addUser, deleteUser } = useAuth();
-    
-    // State for modals
+    const { currentUser, allUsers, addUser, updateUser, deleteUser, hasPermission } = useAuth();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
-    const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
     const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
-    
+
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
-    const [newUserCreds, setNewUserCreds] = useState<{ email: string, temporaryPassword: string } | null>(null);
+    const [newUserCredentials, setNewUserCredentials] = useState({ email: '', temporaryPassword: '' });
+    
+    const canWrite = hasPermission('users:write');
 
-    const visibleUsers = getVisibleUsers(currentUser, allUsers);
+    const visibleUsers = useMemo(() => {
+        return getVisibleUsers(currentUser, allUsers);
+    }, [currentUser, allUsers]);
 
     const handleAddUser = () => {
         setSelectedUser(null);
@@ -31,40 +34,43 @@ const UsersPage: React.FC = () => {
         setSelectedUser(user);
         setFormModalOpen(true);
     };
-    
-    const handleDeleteRequest = (user: User) => {
+
+    const handleDeleteUser = (user: User) => {
         setUserToDelete(user);
-        setDeleteModalOpen(true);
+        setConfirmModalOpen(true);
     };
 
-    const confirmDeleteUser = () => {
+    const confirmDelete = () => {
         if (userToDelete) {
             deleteUser(userToDelete.id);
         }
-        setDeleteModalOpen(false);
+        setConfirmModalOpen(false);
         setUserToDelete(null);
     };
+    
+    const generateTempPassword = () => `pass_${Math.random().toString(36).substring(2, 10)}`;
 
-    const handleSaveUser = (user: User) => {
-        if (selectedUser) {
-            // Edit existing user
-            updateUser(user);
-        } else {
-            // Add new user
-            const newUser = addUser({
-                name: user.name,
-                email: user.email,
-                phone: user.phone,
-                role: user.role,
-                status: user.status,
-            });
-            setNewUserCreds({ email: newUser.email, temporaryPassword: 'password123' });
+    const handleSaveUser = (userToSave: User) => {
+        if (userToSave.id) { // Editing existing user
+            updateUser(userToSave);
+        } else { // Adding new user
+            const temporaryPassword = generateTempPassword();
+            const newUser: User = {
+                ...userToSave,
+                id: `user-${Date.now()}`,
+                avatarUrl: `https://i.pravatar.cc/150?u=${userToSave.email}`,
+                lastLogin: new Date().toISOString(),
+                isOnline: false,
+                permissions: [],
+                status: UserStatus.PendingActivation,
+            };
+            addUser(newUser);
+            setNewUserCredentials({ email: newUser.email, temporaryPassword });
             setSuccessModalOpen(true);
         }
         setFormModalOpen(false);
         setSelectedUser(null);
     };
-
 
     return (
         <div>
@@ -72,10 +78,10 @@ const UsersPage: React.FC = () => {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Gestion des Utilisateurs</h1>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        Gérez les comptes, les rôles et les permissions.
+                        Ajoutez, modifiez et gérez les accès des utilisateurs de votre équipe.
                     </p>
                 </div>
-                {hasPermission('users:write') && (
+                {canWrite && (
                     <Button onClick={handleAddUser}>
                         Ajouter un utilisateur
                     </Button>
@@ -85,11 +91,11 @@ const UsersPage: React.FC = () => {
             <UserTable 
                 users={visibleUsers}
                 onEdit={handleEditUser}
-                onDelete={handleDeleteRequest}
+                onDelete={handleDeleteUser}
             />
 
             {isFormModalOpen && (
-                <UserFormModal 
+                <UserFormModal
                     isOpen={isFormModalOpen}
                     onClose={() => setFormModalOpen(false)}
                     onSave={handleSaveUser}
@@ -97,11 +103,11 @@ const UsersPage: React.FC = () => {
                 />
             )}
 
-            {isDeleteModalOpen && userToDelete && (
+            {isConfirmModalOpen && userToDelete && (
                 <ConfirmationModal
-                    isOpen={isDeleteModalOpen}
-                    onClose={() => setDeleteModalOpen(false)}
-                    onConfirm={confirmDeleteUser}
+                    isOpen={isConfirmModalOpen}
+                    onClose={() => setConfirmModalOpen(false)}
+                    onConfirm={confirmDelete}
                     title="Confirmer la suppression"
                     message={`Êtes-vous sûr de vouloir supprimer l'utilisateur ${userToDelete.name} ? Cette action est irréversible.`}
                     confirmText="Supprimer"
@@ -109,11 +115,11 @@ const UsersPage: React.FC = () => {
                 />
             )}
             
-            {isSuccessModalOpen && newUserCreds && (
+            {isSuccessModalOpen && (
                 <UserCreationSuccessModal
                     isOpen={isSuccessModalOpen}
                     onClose={() => setSuccessModalOpen(false)}
-                    credentials={newUserCreds}
+                    credentials={newUserCredentials}
                 />
             )}
         </div>
