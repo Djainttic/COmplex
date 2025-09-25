@@ -7,7 +7,7 @@ import Button from '../ui/Button';
 const LoginPage: React.FC = () => {
     const { login, settings } = useAuth();
     const navigate = useNavigate();
-    const [email, setEmail] = useState('djalalttl@bungalow.dz'); // Pre-fill Super Admin for convenience
+    const [email, setEmail] = useState(''); // Pre-fill Super Admin for convenience
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
