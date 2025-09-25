@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User, Settings, UserRole, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType, UserStatus } from '../types';
@@ -63,6 +64,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to map Supabase profile to our app's User type
+const mapProfileToUser = (profile: any): User => ({
+    id: profile.id,
+    name: profile.name,
+    email: profile.email,
+    phone: profile.phone,
+    role: profile.role,
+    status: profile.status,
+    avatarUrl: profile.avatar_url,
+    isOnline: profile.is_online,
+    lastLogin: profile.last_login,
+    permissions: [], // Permissions are derived from role and settings
+});
+
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -73,22 +89,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         const fetchInitialData = async (session: Session | null) => {
             try {
-                // Fetch settings first
+                // --- Settings Fetch ---
                 const { data: settingsData, error: settingsError } = await supabase
                     .from('settings')
                     .select('data')
                     .eq('id', 1)
-                    .single();
-
+                    .maybeSingle();
+                
                 if (settingsError) {
-                    console.error("Error fetching settings, using defaults:", settingsError);
-                } else if (settingsData) {
+                    // The error code '42P01' or a message including the table name indicates an undefined table.
+                    if (settingsError.code === '42P01' || settingsError.message.includes("Could not find the table 'public.settings'")) {
+                        console.warn("The 'settings' table was not found. Using default settings. Please create the table for settings to be saved.");
+                    } else {
+                        console.error("Error fetching settings, using defaults:", settingsError.message || settingsError);
+                    }
+                } else if (settingsData && settingsData.data) {
                     setSettings(settingsData.data);
                 }
 
-
+                // --- User Profile & All Users Fetch ---
                 if (session) {
-                    // Fetch current user's profile
                     const { data: profile, error: profileError } = await supabase
                         .from('profiles')
                         .select('*')
@@ -99,21 +119,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         console.error("Error fetching profile:", profileError);
                         setCurrentUser(null);
                     } else if (profile) {
-                        setCurrentUser({
-                            id: profile.id,
-                            name: profile.name,
-                            email: profile.email,
-                            phone: profile.phone,
-                            role: profile.role,
-                            status: profile.status,
-                            avatarUrl: profile.avatar_url,
-                            isOnline: profile.is_online,
-                            lastLogin: profile.last_login,
-                            permissions: [], // Permissions are derived from role and settings
-                        });
+                        setCurrentUser(mapProfileToUser(profile));
                     }
 
-                    // Fetch all users for management purposes
                     const { data: allProfiles, error: allProfilesError } = await supabase
                         .from('profiles')
                         .select('*');
@@ -123,18 +131,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }
                     
                     if(allProfiles) {
-                        setAllUsers(allProfiles.map(p => ({
-                            id: p.id,
-                            name: p.name,
-                            email: p.email,
-                            phone: p.phone,
-                            role: p.role,
-                            status: p.status,
-                            avatarUrl: p.avatar_url,
-                            isOnline: p.is_online,
-                            lastLogin: p.last_login,
-                            permissions: [],
-                        })));
+                        setAllUsers(allProfiles.map(mapProfileToUser));
                     }
 
                 } else {
@@ -155,14 +152,57 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             fetchInitialData(session);
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
-            setLoading(true); // Set loading to true while new session data is fetched
+            setLoading(true);
             fetchInitialData(session);
         });
+        
+        // --- REALTIME SUBSCRIPTIONS ---
 
-        return () => subscription.unsubscribe();
-    }, []);
+        const profilesChannel = supabase.channel('profiles-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
+                switch (payload.eventType) {
+                    case 'INSERT':
+                        setAllUsers(prev => [...prev, mapProfileToUser(payload.new)]);
+                        break;
+                    case 'UPDATE':
+                        const updatedUser = mapProfileToUser(payload.new);
+                        setAllUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+                        if (currentUser?.id === updatedUser.id) {
+                            setCurrentUser(updatedUser);
+                        }
+                        break;
+                    case 'DELETE':
+                        setAllUsers(prev => prev.filter(u => u.id !== (payload.old as any).id));
+                        break;
+                }
+            })
+            .subscribe();
+
+        const settingsChannel = supabase.channel('settings-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'settings', filter: 'id=eq.1' }, payload => {
+                if (payload.new && (payload.new as any).data) {
+                    setSettings((payload.new as any).data);
+                }
+            })
+            .subscribe((status, err: any) => {
+                if (status === 'SUBSCRIPTION_ERROR') {
+                    if (err && err.message?.includes('relation "public.settings" does not exist')) {
+                         console.warn("Realtime updates for settings are disabled because the 'settings' table was not found.");
+                    } else {
+                         console.error('Realtime subscription error for settings:', err);
+                    }
+                }
+            });
+
+
+        return () => {
+            authSubscription.unsubscribe();
+            supabase.removeChannel(profilesChannel);
+            supabase.removeChannel(settingsChannel);
+        };
+    }, [currentUser?.id]);
 
     const login = async (email: string, pass: string) => {
         const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
@@ -194,13 +234,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (error) {
             console.error("Error updating user profile:", error);
             alert("Erreur lors de la mise à jour du profil.");
-            return;
-        }
-        
-        // Update state optimistically
-        setAllUsers(prev => prev.map(u => u.id === user.id ? user : u));
-        if (currentUser?.id === user.id) {
-            setCurrentUser(user);
         }
     };
     
@@ -209,7 +242,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("Email and name are required to create a user.");
             return null;
         }
-
+        
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: userData.email,
             password: temporaryPassword,
@@ -243,25 +276,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return null;
         }
         
-        const newUser: User = {
-            id: newProfile.id,
-            name: newProfile.name,
-            email: newProfile.email,
-            phone: newProfile.phone,
-            role: newProfile.role,
-            status: newProfile.status,
-            avatarUrl: newProfile.avatar_url,
-            isOnline: false,
-            lastLogin: newProfile.last_login,
-            permissions: [],
-        };
-
-        setAllUsers(prev => [...prev, newUser]);
-        return newUser;
+        return mapProfileToUser(newProfile);
     };
 
     const deleteUser = async (userId: string) => {
-        console.warn(`Deleting profile for user ${userId}. Auth user may remain if not handled by a server-side function.`);
+        console.warn(`Deleting profile for user ${userId}. The auth user will remain unless a server-side function is configured.`);
         
         const { error } = await supabase
             .from('profiles')
@@ -271,23 +290,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (error) {
             console.error("Error deleting user profile:", error);
             alert("Erreur lors de la suppression du profil.");
-            return;
         }
-        
-        setAllUsers(prev => prev.filter(u => u.id !== userId));
     };
 
     const updateSettings = async (newSettings: Settings) => {
-        setSettings(newSettings); 
-        
         const { error } = await supabase
             .from('settings')
-            .update({ data: newSettings })
-            .eq('id', 1);
+            .upsert({ id: 1, data: newSettings });
 
         if (error) {
-            console.error("Error updating settings:", error);
-            alert("Erreur lors de la sauvegarde des paramètres. Les modifications pourraient ne pas être conservées.");
+            if (error.code === '42P01' || error.message.includes("Could not find the table")) {
+                 console.warn("Could not save settings because the 'settings' table does not exist. Please create it in your Supabase dashboard.");
+                 alert("Impossible d'enregistrer les paramètres : la table de configuration 'settings' n'existe pas dans la base de données.");
+            } else {
+                console.error("Error updating settings:", error);
+                alert("Erreur lors de la sauvegarde des paramètres. Les modifications pourraient ne pas être conservées.");
+            }
         }
     };
 
