@@ -1,7 +1,7 @@
 // hooks/useData.tsx
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, CommunicationLog, LoyaltyLog, ReservationStatus, BungalowStatus } from '../types';
+import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, CommunicationLog, LoyaltyLog, ReservationStatus } from '../types';
 
 interface DataContextType {
     bungalows: Bungalow[];
@@ -56,49 +56,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 { data: reservationsData },
                 { data: invoicesData },
                 { data: maintenanceData },
+                { data: communicationData },
+                { data: loyaltyData },
             ] = await Promise.all([
                 supabase.from('bungalows').select('*'),
                 supabase.from('clients').select('*'),
                 supabase.from('reservations').select('*'),
                 supabase.from('invoices').select('*'),
                 supabase.from('maintenance_requests').select('*'),
+                supabase.from('communication_logs').select('*'),
+                supabase.from('loyalty_logs').select('*'),
             ]);
 
-            setBungalows(bungalowsData as Bungalow[] || []);
-            setClients(clientsData as Client[] || []);
-            setReservations(reservationsData as Reservation[] || []);
-            setInvoices(invoicesData as Invoice[] || []);
-            setMaintenanceRequests(maintenanceData as MaintenanceRequest[] || []);
+            setBungalows((bungalowsData as any[]) || []);
+            setClients((clientsData as any[]) || []);
+            setReservations((reservationsData as any[]) || []);
+            setInvoices((invoicesData as any[]) || []);
+            setMaintenanceRequests((maintenanceData as any[]) || []);
+            setCommunicationLogs((communicationData as any[]) || []);
+            setLoyaltyLogs((loyaltyData as any[]) || []);
         };
 
         fetchAllData();
-
-        // Set up real-time subscriptions
-        const channel = supabase.channel('public:all');
-
-        channel
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bungalows' }, payload => {
-                console.log('Bungalow change received!', payload);
-                fetchAllData(); // Refetch all for simplicity, can be optimized
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, payload => {
-                 console.log('Reservation change received!', payload);
-                 fetchAllData();
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, payload => {
-                 console.log('Client change received!', payload);
-                 fetchAllData();
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
     }, []);
     
-    const isBungalowAvailable = (bungalowId: string, startDate: string, endDate: string, currentReservationId: string | null): boolean => {
-        // This check should ideally be a database function for atomicity,
-        // but a client-side check is good for immediate user feedback.
+    const isBungalowAvailable = (bungalowId: string, startDate: string, endDate: string, currentReservationId?: string | null): boolean => {
         const newStart = new Date(startDate).getTime();
         const newEnd = new Date(endDate).getTime();
 
@@ -114,12 +96,32 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return !conflictingReservation;
     };
 
-
-    // Generic CRUD operations
-    const createCrudOperations = <T extends {id: string}>(table: string, setData: React.Dispatch<React.SetStateAction<T[]>>) => ({
-        update: (data: Partial<T>) => supabase.from(table).update(data).eq('id', data.id),
-        add: (data: Partial<T>) => supabase.from(table).insert(data as any),
-        delete: (id: string) => supabase.from(table).delete().eq('id', id),
+    // Generic CRUD Operations with manual state update
+    const createCrudOperations = <T extends {id: string}>(
+        table: string, 
+        setter: React.Dispatch<React.SetStateAction<T[]>>
+    ) => ({
+        add: async (data: Partial<T>) => {
+            const { data: newData, error } = await supabase.from(table).insert(data as any).select().single();
+            if (!error && newData) {
+                setter(prev => [...prev, newData]);
+            }
+            return { data: newData, error };
+        },
+        update: async (data: Partial<T>) => {
+            const { data: updatedData, error } = await supabase.from(table).update(data as any).eq('id', data.id).select().single();
+             if (!error && updatedData) {
+                setter(prev => prev.map(item => item.id === updatedData.id ? updatedData : item));
+            }
+            return { data: updatedData, error };
+        },
+        delete: async (id: string) => {
+            const { error } = await supabase.from(table).delete().eq('id', id);
+             if (!error) {
+                setter(prev => prev.filter(item => item.id !== id));
+            }
+            return { error };
+        },
     });
 
     const bungalowOps = createCrudOperations('bungalows', setBungalows);
@@ -129,35 +131,67 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const communicationOps = createCrudOperations('communication_logs', setCommunicationLogs);
     const loyaltyOps = createCrudOperations('loyalty_logs', setLoyaltyLogs);
 
-
     // Custom reservation logic with conflict check
     const addReservation = async (res: Partial<Reservation>) => {
-        if (!isBungalowAvailable(res.bungalowId!, res.startDate!, res.endDate!, null)) {
+        if (!isBungalowAvailable(res.bungalowId!, res.startDate!, res.endDate!)) {
             alert("Erreur : Ce bungalow est déjà réservé pour ces dates.");
             return { success: false };
         }
-        await supabase.from('reservations').insert(res as any);
-        return { success: true };
+        const { data: newReservation, error } = await supabase.from('reservations').insert(res as any).select().single();
+        if (!error && newReservation) {
+            setReservations(prev => [...prev, newReservation]);
+            return { success: true };
+        }
+        return { success: false };
     };
 
     const updateReservation = async (res: Partial<Reservation>) => {
-         if (!isBungalowAvailable(res.bungalowId!, res.startDate!, res.endDate!, res.id!)) {
+         if (!isBungalowAvailable(res.bungalowId!, res.startDate!, res.endDate!, res.id)) {
             alert("Erreur : Ce bungalow est déjà réservé pour ces dates.");
             return { success: false };
         }
-        await supabase.from('reservations').update(res).eq('id', res.id);
-        return { success: true };
+        const { data: updatedReservation, error } = await supabase.from('reservations').update(res as any).eq('id', res.id).select().single();
+        if (!error && updatedReservation) {
+            setReservations(prev => prev.map(item => item.id === updatedReservation.id ? updatedReservation : item));
+            return { success: true };
+        }
+        return { success: false };
+    };
+    
+    const addInvoices = async (invs: Partial<Invoice>[]) => {
+        const { data: newInvoices, error } = await supabase.from('invoices').insert(invs as any).select();
+        if (!error && newInvoices) {
+            setInvoices(prev => [...prev, ...newInvoices]);
+        }
+        return { data: newInvoices, error };
     };
 
-
+    // FIX: Correctly map generic CRUD functions to the specific function names required by the DataContextType interface.
     const value: DataContextType = {
-        bungalows, updateBungalow: bungalowOps.update, addBungalow: bungalowOps.add, deleteBungalow: bungalowOps.delete,
-        clients, updateClient: clientOps.update, addClient: clientOps.add, deleteClient: clientOps.delete,
-        reservations, updateReservation, addReservation,
-        invoices, updateInvoice: invoiceOps.update, addInvoice: invoiceOps.add, addInvoices: (invs) => supabase.from('invoices').insert(invs as any), deleteInvoice: invoiceOps.delete,
-        maintenanceRequests, updateMaintenanceRequest: maintenanceOps.update, addMaintenanceRequest: maintenanceOps.add, deleteMaintenanceRequest: maintenanceOps.delete,
-        communicationLogs, addCommunicationLog: communicationOps.add,
-        loyaltyLogs, addLoyaltyLog: loyaltyOps.add,
+        bungalows,
+        addBungalow: bungalowOps.add,
+        updateBungalow: bungalowOps.update,
+        deleteBungalow: bungalowOps.delete,
+        clients,
+        addClient: clientOps.add,
+        updateClient: clientOps.update,
+        deleteClient: clientOps.delete,
+        reservations,
+        updateReservation,
+        addReservation,
+        invoices,
+        addInvoice: invoiceOps.add,
+        updateInvoice: invoiceOps.update,
+        deleteInvoice: invoiceOps.delete,
+        addInvoices,
+        maintenanceRequests,
+        addMaintenanceRequest: maintenanceOps.add,
+        updateMaintenanceRequest: maintenanceOps.update,
+        deleteMaintenanceRequest: maintenanceOps.delete,
+        communicationLogs,
+        addCommunicationLog: communicationOps.add,
+        loyaltyLogs,
+        addLoyaltyLog: loyaltyOps.add,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
