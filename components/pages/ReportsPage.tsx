@@ -1,6 +1,5 @@
-
 import React, { useState, useMemo } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from 'https://aistudiocdn.com/@google/genai@^1.20.0';
 import { ReservationStatus, BungalowType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
