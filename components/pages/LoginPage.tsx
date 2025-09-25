@@ -7,8 +7,8 @@ import Button from '../ui/Button';
 const LoginPage: React.FC = () => {
     const { login, settings, allUsers } = useAuth();
     const navigate = useNavigate();
-    const [email, setEmail] = useState('admin@bungalow.dz'); // Pre-fill for convenience
-    const [password, setPassword] = useState('password'); // Dummy password
+    const [email, setEmail] = useState('admin_syphax@bungalow.dz'); // Pre-fill for convenience
+    const [password, setPassword] = useState('admin'); // Dummy password
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -30,7 +30,10 @@ const LoginPage: React.FC = () => {
         const user = allUsers.find(u => u.role === role);
         if (user) {
             setEmail(user.email);
-            setPassword('password'); // Use the dummy password for all demo accounts
+            // Pre-fill passwords for demo purposes
+            if (role === UserRole.SuperAdmin) setPassword('tooroot');
+            else if (role === UserRole.Admin) setPassword('admin');
+            else setPassword('password');
         }
     };
 

@@ -79,10 +79,10 @@ const getPermissionsForRole = (role: UserRole): Permission[] => {
 const MOCK_ALL_USERS: User[] = [
     {
         id: 'user-superadmin',
-        name: 'Super Admin',
-        email: 'superadmin@bungalow.dz',
+        name: 'djalalttl',
+        email: 'djalalttl@bungalow.dz',
         phone: '0555000000',
-        avatarUrl: 'https://i.pravatar.cc/150?u=superadmin',
+        avatarUrl: 'https://i.pravatar.cc/150?u=djalalttl',
         role: UserRole.SuperAdmin,
         status: UserStatus.Active,
         permissions: getPermissionsForRole(UserRole.SuperAdmin),
@@ -91,10 +91,10 @@ const MOCK_ALL_USERS: User[] = [
     },
     {
         id: 'user-admin',
-        name: 'Admin Admin',
-        email: 'admin@bungalow.dz',
+        name: 'admin_syphax',
+        email: 'admin_syphax@bungalow.dz',
         phone: '0555123456',
-        avatarUrl: 'https://i.pravatar.cc/150?u=admin',
+        avatarUrl: 'https://i.pravatar.cc/150?u=admin_syphax',
         role: UserRole.Admin,
         status: UserStatus.Active,
         permissions: getPermissionsForRole(UserRole.Admin),
@@ -127,8 +127,8 @@ const MOCK_ALL_USERS: User[] = [
 
 const MOCK_SETTINGS: Settings = {
     general: {
-        complexName: 'Bungalow.dz',
-        logoUrl: '/logo.svg', // Assuming a logo in public folder
+        complexName: 'SYPHAX, village touristique',
+        logoUrl: 'https://i.ibb.co/L5QhKqC/syphax.png',
         bungalowCount: 12,
     },
     financial: {

@@ -1,5 +1,5 @@
 {
-  "name": "BungalowComplex Manager",
+  "name": "SYPHAX - Gestionnaire de Village Touristique",
   "description": "A comprehensive, responsive web application for managing a bungalow complex, including reservations, billing, maintenance, and multi-role user access. Built module by module for scalability and future integration with mobile apps and AI features.",
   "requestFramePermissions": []
 }

@@ -25,25 +25,25 @@ export const NAV_ITEMS: NavItem[] = [
 export const MOCK_BUNGALOWS: Bungalow[] = [
     {
         id: 'bungalow-1',
-        name: 'Bungalow "Le Palmier"',
+        name: 'Le Palmier Doré',
         type: BungalowType.Deluxe,
         status: BungalowStatus.Available,
         capacity: 2,
-        pricePerNight: 15000,
+        pricePerNight: 18000,
         amenities: ['Climatisation', 'Wi-Fi', 'Vue sur mer', 'Mini-bar'],
-        imageUrl: `https://picsum.photos/seed/bungalow1/400/300`,
-        description: 'Un charmant bungalow avec une vue imprenable sur la mer Méditerranée.'
+        imageUrl: `https://i.ibb.co/W2zZcM0/bungalow1.jpg`,
+        description: 'Idéal pour les couples, avec une vue magnifique sur la mer.'
     },
     {
         id: 'bungalow-2',
-        name: 'Bungalow "L\'Olivier"',
+        name: 'L\'Oasis Familiale',
         type: BungalowType.Standard,
         status: BungalowStatus.Occupied,
         capacity: 4,
-        pricePerNight: 12000,
+        pricePerNight: 22000,
         amenities: ['Climatisation', 'Wi-Fi', 'Cuisine équipée'],
-        imageUrl: `https://picsum.photos/seed/bungalow2/400/300`,
-        description: 'Parfait pour les petites familles, avec tout le confort nécessaire.'
+        imageUrl: `https://i.ibb.co/M8V2R8P/bungalow2.jpg`,
+        description: 'Spacieux et parfait pour les familles, proche de la piscine.'
     },
     {
         id: 'bungalow-3',
