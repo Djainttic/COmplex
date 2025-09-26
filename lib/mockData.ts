@@ -35,7 +35,8 @@ const createPermissionsMap = (allowed: Permission[]): { [key in Permission]?: bo
     return map;
 };
 
-const MOCK_ROLES: RoleSetting[] = [
+// FIX: Export MOCK_ROLES to make it available for import in other modules.
+export const MOCK_ROLES: RoleSetting[] = [
     { roleName: UserRole.SuperAdmin, permissions: createPermissionsMap(ALL_PERMISSIONS) },
     { roleName: UserRole.Admin, permissions: createPermissionsMap(ADMIN_PERMISSIONS) },
     { roleName: UserRole.Manager, permissions: createPermissionsMap(MANAGER_PERMISSIONS) },

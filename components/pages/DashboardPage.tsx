@@ -65,94 +65,92 @@ const DashboardPage: React.FC = () => {
         return { checkInsToday, checkOutsToday, occupancyRate, pendingMaintenance };
     }, [reservations, bungalows, maintenanceRequests]);
 
-    // FIX: Object literal may only specify known properties, and 'id' does not exist in type 'Omit<Reservation, "id">'.
-    // The `addReservation` function handles ID creation.
-    const handleSaveReservation = (res: Reservation) => {
-        if (res.id) {
-            updateReservation(res);
+    const handleSaveReservation = async (res: Reservation) => {
+        if (res.id && res.id !== '') {
+            await updateReservation(res);
         } else {
-            const { id, ...newReservationData } = res;
-            addReservation(newReservationData);
+            const { id, ...newRes } = res;
+            await addReservation(newRes);
         }
         setReservationModalOpen(false);
     };
-    
-    // FIX: Object literal may only specify known properties, and 'id' does not exist in type 'Omit<Client, "id">'.
-    // The `addClient` function handles ID creation, and the form modal handles defaults.
-    const handleSaveClient = (client: Client) => {
-        if (client.id) {
-            updateClient(client);
+
+     const handleSaveClient = async (cli: Client) => {
+        if (cli.id && cli.id !== '') {
+            await updateClient(cli);
         } else {
-            const { id, ...newClientData } = client;
-            addClient(newClientData);
+            const { id, ...newCli } = cli;
+            await addClient(newCli);
         }
         setClientModalOpen(false);
     };
 
-    // FIX: Object literal may only specify known properties, and 'id' does not exist in type 'Omit<MaintenanceRequest, "id">'.
-    // The `addMaintenanceRequest` function handles ID creation, and the form modal handles defaults.
-    const handleSaveMaintenance = (req: MaintenanceRequest) => {
-        if (req.id) {
-            updateMaintenanceRequest(req);
+    const handleSaveMaintenance = async (req: MaintenanceRequest) => {
+        if (req.id && req.id !== '') {
+            await updateMaintenanceRequest(req);
         } else {
-            const { id, ...newRequestData } = req;
-            addMaintenanceRequest(newRequestData);
+            const { id, ...newReq } = req;
+            await addMaintenanceRequest(newReq);
         }
         setMaintenanceModalOpen(false);
     };
 
-    const icons = {
-        checkin: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>,
-        checkout: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>,
-        occupancy: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
-        maintenance: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" /></svg>,
-    };
-    
     const isLoading = isDataLoading.bungalows || isDataLoading.reservations || isDataLoading.clients || isDataLoading.maintenanceRequests || loadingUsers;
 
-    if (isLoading && bungalows.length === 0) {
+    if (isLoading) {
         return <PageLoader />;
     }
 
     return (
-        <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Bonjour {currentUser?.name}, voici un aperçu de l'activité de votre complexe.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-                <StatCard title="Taux d'occupation" value={`${dashboardData.occupancyRate.toFixed(1)}%`} icon={icons.occupancy} />
-                <StatCard title="Arrivées aujourd'hui" value={`${dashboardData.checkInsToday}`} icon={icons.checkin} />
-                <StatCard title="Départs aujourd'hui" value={`${dashboardData.checkOutsToday}`} icon={icons.checkout} />
-                <StatCard title="Maintenance en cours" value={`${dashboardData.pendingMaintenance}`} icon={icons.maintenance} />
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <StatCard 
+                    title="Arrivées aujourd'hui"
+                    value={dashboardData.checkInsToday.toString()}
+                    icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>}
+                />
+                 <StatCard 
+                    title="Départs aujourd'hui"
+                    value={dashboardData.checkOutsToday.toString()}
+                    icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>}
+                />
+                 <StatCard 
+                    title="Taux d'occupation"
+                    value={`${dashboardData.occupancyRate.toFixed(1)}%`}
+                    icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
+                />
+                 <StatCard 
+                    title="Maintenance en cours"
+                    value={dashboardData.pendingMaintenance.toString()}
+                    icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" /></svg>}
+                />
             </div>
 
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                   <BungalowStatusChart bungalows={bungalows} />
-                   <RecentActivityFeed 
-                       reservations={reservations} 
-                       maintenanceRequests={maintenanceRequests}
-                       clients={clients}
-                       bungalows={bungalows}
-                   />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <BungalowStatusChart bungalows={bungalows} />
                 </div>
-                <div className="lg:col-span-1 space-y-8">
+                <div>
+                    <UpcomingActivities reservations={reservations} clients={clients} bungalows={bungalows} />
+                </div>
+                <div className="lg:col-span-2">
+                    <RecentActivityFeed 
+                        reservations={reservations}
+                        maintenanceRequests={maintenanceRequests}
+                        clients={clients}
+                        bungalows={bungalows}
+                    />
+                </div>
+                <div>
                     <QuickActions 
                         onAddReservation={() => setReservationModalOpen(true)}
                         onAddClient={() => setClientModalOpen(true)}
                         onAddMaintenance={() => setMaintenanceModalOpen(true)}
                     />
-                    <UpcomingActivities
-                        reservations={reservations}
-                        clients={clients}
-                        bungalows={bungalows}
-                    />
                 </div>
             </div>
 
-            {isReservationModalOpen && (
+             {isReservationModalOpen && (
                 <ReservationFormModal 
                     isOpen={isReservationModalOpen}
                     onClose={() => setReservationModalOpen(false)}
@@ -161,8 +159,8 @@ const DashboardPage: React.FC = () => {
                     bungalows={bungalows}
                     clients={clients}
                 />
-            )}
-             {isClientModalOpen && (
+             )}
+            {isClientModalOpen && (
                 <ClientFormModal
                     isOpen={isClientModalOpen}
                     onClose={() => setClientModalOpen(false)}
@@ -180,7 +178,7 @@ const DashboardPage: React.FC = () => {
                     users={assignableUsers}
                 />
             )}
-        </div>
+        </>
     );
 };
 

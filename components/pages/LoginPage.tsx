@@ -1,47 +1,48 @@
+// components/pages/LoginPage.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import Button from '../ui/Button';
 import ForgotPasswordModal from '../users/ForgotPasswordModal';
 
 const LoginPage: React.FC = () => {
-    const { login, settings } = useAuth();
-    const navigate = useNavigate();
-    const [email, setEmail] = useState(''); // Pre-fill Super Admin for convenience
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isForgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+    const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
+    
+    const { login, settings } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const from = location.state?.from?.pathname || '/';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
-        
-        const { success, error } = await login(email, password);
-        
+        const result = await login(email, password);
         setIsLoading(false);
-        if (success) {
-            navigate('/');
+        if (result.success) {
+            navigate(from, { replace: true });
         } else {
-            setError(error || 'Une erreur est survenue.');
+            setError(result.error || 'Une erreur est survenue.');
         }
     };
 
     return (
+        <>
         <div 
             className="min-h-screen bg-cover bg-center flex items-center justify-center p-4" 
-            style={{ backgroundImage: `url('${settings.general.loginImageUrl || 'https://i.ibb.co/3W81zgx/syphax-bg.jpg'}')` }}
+            style={{ backgroundImage: `url(${settings.general.loginImageUrl})` }}
         >
             <div className="w-full max-w-md p-8 space-y-6 bg-white/80 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl shadow-2xl">
                 <div className="text-center">
                     <img className="w-16 h-16 mx-auto" src={settings.general.logoUrl} alt="Logo" />
                     <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">
-                        {settings.general.complexName}
+                        Bienvenue sur {settings.general.complexName}
                     </h1>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Connectez-vous à votre espace de gestion
-                    </p>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Connectez-vous à votre compte</p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="rounded-md shadow-sm -space-y-px">
@@ -75,24 +76,20 @@ const LoginPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                            <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" />
-                            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Se souvenir de moi</label>
-                        </div>
+                    {error && <p className="text-sm text-center text-red-600 dark:text-red-400">{error}</p>}
+                    
+                    <div className="flex items-center justify-end">
                         <div className="text-sm">
                             <button
                                 type="button"
-                                onClick={() => setForgotPasswordOpen(true)}
-                                className="font-medium text-primary-600 hover:text-primary-500"
+                                onClick={() => setPasswordModalOpen(true)}
+                                className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
                             >
                                 Mot de passe oublié ?
                             </button>
                         </div>
                     </div>
 
-                    {error && <p className="text-sm text-center text-red-600 dark:text-red-400">{error}</p>}
-                    
                     <div>
                         <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                             {isLoading ? 'Connexion...' : 'Se connecter'}
@@ -100,11 +97,9 @@ const LoginPage: React.FC = () => {
                     </div>
                 </form>
             </div>
-            <ForgotPasswordModal
-                isOpen={isForgotPasswordOpen}
-                onClose={() => setForgotPasswordOpen(false)}
-            />
         </div>
+        <ForgotPasswordModal isOpen={isPasswordModalOpen} onClose={() => setPasswordModalOpen(false)} />
+        </>
     );
 };
 

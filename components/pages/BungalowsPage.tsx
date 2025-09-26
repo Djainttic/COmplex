@@ -1,77 +1,81 @@
-import React, { useState, useMemo, useEffect } from 'react';
+// components/pages/BungalowsPage.tsx
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Bungalow } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
+import { useData } from '../../hooks/useData';
+import { useToasts } from '../../hooks/useToasts';
+import Button from '../ui/Button';
 import BungalowFilters from '../bungalows/BungalowFilters';
 import BungalowCatalogue from '../bungalows/BungalowCatalogue';
 import BungalowFormModal from '../bungalows/BungalowFormModal';
-import Button from '../ui/Button';
-import { useAuth } from '../../hooks/useAuth';
-import { useData } from '../../hooks/useData';
+import ConfirmationModal from '../ui/ConfirmationModal';
 
 const BungalowsPage: React.FC = () => {
     const { hasPermission } = useAuth();
-    const { bungalows, addBungalow, updateBungalow, deleteBungalow, fetchBungalows, isLoading } = useData();
-    const [filters, setFilters] = useState({ status: '', type: '', capacity: 0 });
-    const [isModalOpen, setModalOpen] = useState(false);
+    const { bungalows, fetchBungalows, addBungalow, updateBungalow, deleteBungalow, isLoading } = useData();
+    const { addToast } = useToasts();
+    
+    const [isFormModalOpen, setFormModalOpen] = useState(false);
+    const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
     const [selectedBungalow, setSelectedBungalow] = useState<Bungalow | null>(null);
+    const [filters, setFilters] = useState({ status: '', type: '', capacity: 0 });
 
     useEffect(() => {
         fetchBungalows();
     }, [fetchBungalows]);
 
-    const handleFilterChange = (newFilters: { status: string; type: string; capacity: number }) => {
-        setFilters(newFilters);
-    };
+    const filteredBungalows = useMemo(() => {
+        return bungalows.filter(b => 
+            (filters.status ? b.status === filters.status : true) &&
+            (filters.type ? b.type === filters.type : true) &&
+            (filters.capacity > 0 ? b.capacity >= filters.capacity : true)
+        );
+    }, [bungalows, filters]);
+
+    const canWrite = hasPermission(['bungalows:create', 'bungalows:update', 'bungalows:delete']);
 
     const handleAddBungalow = () => {
         setSelectedBungalow(null);
-        setModalOpen(true);
+        setFormModalOpen(true);
     };
 
     const handleEditBungalow = (bungalow: Bungalow) => {
         setSelectedBungalow(bungalow);
-        setModalOpen(true);
+        setFormModalOpen(true);
+    };
+
+    const handleDeleteBungalow = (bungalowId: string) => {
+        const bungalowToDelete = bungalows.find(b => b.id === bungalowId);
+        if (bungalowToDelete) {
+            setSelectedBungalow(bungalowToDelete);
+            setDeleteModalOpen(true);
+        }
     };
     
-    const handleDeleteBungalow = async (bungalowId: string) => {
-        if (window.confirm("Êtes-vous sûr de vouloir supprimer ce bungalow ?")) {
-            const result = await deleteBungalow(bungalowId);
-            if (!result.success) {
-                alert(`Erreur lors de la suppression : ${result.error?.message || 'Erreur inconnue'}`);
-            }
-        }
-    };
-
-    const handleSaveBungalow = async (bungalowDataFromModal: Bungalow) => {
-        let result;
-        if (bungalowDataFromModal.id) {
-            result = await updateBungalow(bungalowDataFromModal);
-        } else {
-            const { id, ...newBungalowData } = bungalowDataFromModal;
-            result = await addBungalow(newBungalowData);
-        }
-
-        if (result.success) {
-            setModalOpen(false);
+    const confirmDelete = async () => {
+        if (selectedBungalow) {
+            await deleteBungalow(selectedBungalow.id);
+            addToast({ message: `Le bungalow ${selectedBungalow.name} a été supprimé.`, type: 'success' });
+            setDeleteModalOpen(false);
             setSelectedBungalow(null);
-        } else {
-            alert(`Erreur lors de la sauvegarde du bungalow : ${result.error?.message || 'Erreur inconnue. Vérifiez les permissions RLS.'}`);
         }
     };
-    
-    const handleUpdateBungalow = async (updatedBungalow: Bungalow) => {
-        await updateBungalow(updatedBungalow);
-    };
 
-    const filteredBungalows = useMemo(() => {
-        return bungalows.filter(b => {
-            const statusMatch = filters.status ? b.status === filters.status : true;
-            const typeMatch = filters.type ? b.type === filters.type : true;
-            const capacityMatch = filters.capacity > 0 ? b.capacity >= filters.capacity : true;
-            return statusMatch && typeMatch && capacityMatch;
-        });
-    }, [bungalows, filters]);
+    const handleSaveBungalow = async (bungalowData: Bungalow) => {
+        if (selectedBungalow) { // Editing
+            await updateBungalow({ ...selectedBungalow, ...bungalowData });
+            addToast({ message: `Le bungalow ${bungalowData.name} a été mis à jour.`, type: 'success' });
+        } else { // Adding
+            await addBungalow(bungalowData);
+            addToast({ message: `Le bungalow ${bungalowData.name} a été ajouté.`, type: 'success' });
+        }
+        setFormModalOpen(false);
+        setSelectedBungalow(null);
+    };
     
-    const showLoading = isLoading.bungalows && bungalows.length === 0;
+    const handleFilterChange = useCallback((newFilters: { status: string; type: string; capacity: number }) => {
+        setFilters(newFilters);
+    }, []);
 
     return (
         <div>
@@ -79,10 +83,10 @@ const BungalowsPage: React.FC = () => {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Catalogue des Bungalows</h1>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        Consultez, ajoutez et gérez vos bungalows.
+                        Consultez et gérez l'ensemble de vos bungalows.
                     </p>
                 </div>
-                {hasPermission('bungalows:create') && (
+                {canWrite && (
                     <Button onClick={handleAddBungalow}>
                         Ajouter un bungalow
                     </Button>
@@ -91,23 +95,35 @@ const BungalowsPage: React.FC = () => {
             
             <BungalowFilters onFilterChange={handleFilterChange} />
             
-            {showLoading ? (
+            {isLoading.bungalows ? (
                  <div className="text-center py-12">Chargement des bungalows...</div>
             ) : (
                 <BungalowCatalogue 
-                    bungalows={filteredBungalows}
+                    bungalows={filteredBungalows} 
                     onEdit={handleEditBungalow}
                     onDelete={handleDeleteBungalow}
-                    onUpdateBungalow={handleUpdateBungalow}
+                    onUpdateBungalow={updateBungalow} // Pass for status updates
                 />
             )}
 
-            {isModalOpen && (
-                <BungalowFormModal 
-                    isOpen={isModalOpen}
-                    onClose={() => setModalOpen(false)}
+            {isFormModalOpen && (
+                 <BungalowFormModal
+                    isOpen={isFormModalOpen}
+                    onClose={() => setFormModalOpen(false)}
                     onSave={handleSaveBungalow}
                     bungalow={selectedBungalow}
+                />
+            )}
+
+            {isDeleteModalOpen && selectedBungalow && (
+                <ConfirmationModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => setDeleteModalOpen(false)}
+                    onConfirm={confirmDelete}
+                    title="Supprimer le bungalow"
+                    message={`Êtes-vous sûr de vouloir supprimer le bungalow "${selectedBungalow.name}" ?`}
+                    confirmText="Supprimer"
+                    variant="danger"
                 />
             )}
         </div>

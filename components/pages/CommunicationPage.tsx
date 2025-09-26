@@ -40,7 +40,7 @@ const CommunicationPage: React.FC = () => {
     const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.name])), [allUsers]);
 
     const canWrite = hasPermission('communication:write');
-    const isLoading = isDataLoading.clients || loadingUsers;
+    const isLoading = isDataLoading.clients || loadingUsers || isDataLoading.communicationLogs;
 
     return (
         <div>

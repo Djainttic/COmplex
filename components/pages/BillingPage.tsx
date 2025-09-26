@@ -1,11 +1,12 @@
 // components/pages/BillingPage.tsx
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Invoice, InvoiceStatus, Reservation, ReservationStatus, Client, Bungalow } from '../../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Invoice, Reservation, InvoiceStatus, Bungalow, Client, InvoiceItem } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
+import { useToasts } from '../../hooks/useToasts';
 import Button from '../ui/Button';
-import InvoiceFilters from '../billing/InvoiceFilters';
 import InvoiceTable from '../billing/InvoiceTable';
+import InvoiceFilters from '../billing/InvoiceFilters';
 import InvoiceDetailsModal from '../billing/InvoiceDetailsModal';
 import InvoiceFormModal from '../billing/InvoiceFormModal';
 import SelectReservationsModal from '../billing/SelectReservationsModal';
@@ -13,194 +14,187 @@ import MonthlyRevenueChart from '../billing/MonthlyRevenueChart';
 
 const BillingPage: React.FC = () => {
     const { hasPermission, settings } = useAuth();
-    const { 
-        invoices, clients, reservations, bungalows,
-        fetchInvoices, fetchClients, fetchReservations, fetchBungalows, 
-        addInvoice, updateInvoice, isLoading 
+    const {
+        invoices, reservations, clients, bungalows,
+        fetchInvoices, fetchReservations, fetchClients, fetchBungalows,
+        addInvoice, updateInvoice, isLoading
     } = useData();
-
-    const [filters, setFilters] = useState({ searchTerm: '', status: 'all', startDate: '', endDate: '' });
-    const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-    const [selectedBungalow, setSelectedBungalow] = useState<Bungalow | null>(null);
-    const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-    const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
-
-    const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
-    const [isFormModalOpen, setFormModalOpen] = useState(false);
-    const [isSelectResModalOpen, setSelectResModalOpen] = useState(false);
+    const { addToast } = useToasts();
 
     useEffect(() => {
         fetchInvoices();
-        fetchClients();
         fetchReservations();
+        fetchClients();
         fetchBungalows();
-    }, [fetchInvoices, fetchClients, fetchReservations, fetchBungalows]);
+    }, [fetchInvoices, fetchReservations, fetchClients, fetchBungalows]);
 
-    const handleFilterChange = useCallback((newFilters: typeof filters) => {
-        setFilters(newFilters);
-    }, []);
+    const [filters, setFilters] = useState({ searchTerm: '', status: 'all', startDate: '', endDate: '' });
+    const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
+    const [isFormModalOpen, setFormModalOpen] = useState(false);
+    const [isSelectionModalOpen, setSelectionModalOpen] = useState(false);
+    const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+
+    const canWrite = hasPermission('billing:write');
 
     const filteredInvoices = useMemo(() => {
-        const clientMap = new Map(clients.map(c => [c.id, c.name.toLowerCase()]));
-        return invoices.filter(invoice => {
-            const clientName = clientMap.get(invoice.clientId) || '';
-            const searchMatch = filters.searchTerm 
-                ? invoice.id.toLowerCase().includes(filters.searchTerm.toLowerCase()) || clientName.includes(filters.searchTerm.toLowerCase())
-                : true;
-            const statusMatch = filters.status !== 'all' ? invoice.status === filters.status : true;
-            const date = new Date(invoice.issueDate);
-            const startMatch = filters.startDate ? date >= new Date(filters.startDate) : true;
-            const endMatch = filters.endDate ? date <= new Date(filters.endDate) : true;
-            return searchMatch && statusMatch && startMatch && endMatch;
+        const clientNameMap = new Map(clients.map(c => [c.id, c.name.toLowerCase()]));
+        return invoices.filter(inv => {
+            const clientName = clientNameMap.get(inv.clientId) || '';
+            const matchesSearch = filters.searchTerm === '' ||
+                inv.id.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+                clientName.includes(filters.searchTerm.toLowerCase());
+            
+            const matchesStatus = filters.status === 'all' || inv.status === filters.status;
+            
+            const issueDate = new Date(inv.issueDate);
+            const matchesStartDate = filters.startDate === '' || issueDate >= new Date(filters.startDate);
+            const matchesEndDate = filters.endDate === '' || issueDate <= new Date(filters.endDate);
+
+            return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
         });
     }, [invoices, clients, filters]);
 
-    const handleViewDetails = (invoice: Invoice) => {
-        const client = clients.find(c => c.id === invoice.clientId);
-        const reservation = reservations.find(r => r.id === invoice.reservationId);
-        const bungalow = bungalows.find(b => b.id === reservation?.bungalowId);
-        
-        if (client && bungalow) {
-            setSelectedInvoice(invoice);
-            setSelectedClient(client);
-            setSelectedBungalow(bungalow);
-            setDetailsModalOpen(true);
-        } else {
-            alert("Données associées à la facture introuvables.");
-        }
-    };
-    
-    const handleUpdateStatus = async (invoiceId: string, status: InvoiceStatus) => {
-        const invoiceToUpdate = invoices.find(i => i.id === invoiceId);
-        if (invoiceToUpdate) {
-            await updateInvoice({ ...invoiceToUpdate, status });
-        }
+    const handleViewInvoice = (invoice: Invoice) => {
+        setSelectedInvoice(invoice);
+        setDetailsModalOpen(true);
     };
 
     const handleEditInvoice = (invoice: Invoice) => {
-        setEditingInvoice(invoice);
+        setSelectedInvoice(invoice);
         setFormModalOpen(true);
     };
 
+    const handleAddInvoice = () => {
+        setSelectedInvoice(null);
+        setFormModalOpen(true);
+    };
+    
+    const handleUpdateStatus = async (invoiceId: string, status: InvoiceStatus) => {
+        const invoice = invoices.find(i => i.id === invoiceId);
+        if (invoice) {
+            await updateInvoice({ ...invoice, status });
+            addToast({ message: `Statut de la facture #${invoiceId} mis à jour.`, type: 'info' });
+        }
+    };
+    
     const handleSaveInvoice = async (invoice: Invoice) => {
         if (invoice.id) {
             await updateInvoice(invoice);
+            addToast({ message: `Facture #${invoice.id} mise à jour.`, type: 'success' });
         } else {
             await addInvoice(invoice);
+            addToast({ message: 'Nouvelle facture créée.', type: 'success' });
         }
         setFormModalOpen(false);
-        setEditingInvoice(null);
     };
     
     const reservationsToInvoice = useMemo(() => {
         const invoicedReservationIds = new Set(invoices.map(i => i.reservationId));
         return reservations.filter(r => r.status === ReservationStatus.Confirmed && !invoicedReservationIds.has(r.id));
     }, [reservations, invoices]);
-    
-    const handleGenerateInvoices = async (selectedReservations: Reservation[]) => {
-        for (const res of selectedReservations) {
-            const bungalow = bungalows.find(b => b.id === res.bungalowId);
-            const nights = Math.ceil((new Date(res.endDate).getTime() - new Date(res.startDate).getTime()) / (1000 * 3600 * 24));
 
-            const newInvoice: Omit<Invoice, 'id'> = {
-                reservationId: res.id,
-                clientId: res.clientId,
-                issueDate: new Date().toISOString(),
-                dueDate: new Date(res.endDate).toISOString(),
-                totalAmount: res.totalPrice,
-                status: InvoiceStatus.Unpaid,
-                items: [{
-                    description: `Séjour ${bungalow?.name || ''} - ${nights} nuit(s)`,
-                    quantity: nights,
-                    unitPrice: res.totalPrice / nights,
-                    total: res.totalPrice,
-                }]
+    const handleGenerateFromReservations = (selectedReservations: Reservation[]) => {
+        // This would typically be a server-side process. Here we simulate it.
+        selectedReservations.forEach(res => {
+            const bungalow = bungalows.find(b => b.id === res.bungalowId);
+            const nights = (new Date(res.endDate).getTime() - new Date(res.startDate).getTime()) / (1000 * 3600 * 24);
+            
+            const newItem: InvoiceItem = {
+                description: `Séjour ${bungalow?.name || ''} - ${nights} nuit(s)`,
+                quantity: nights,
+                unitPrice: res.totalPrice / nights,
+                total: res.totalPrice,
             };
-            await addInvoice(newInvoice);
-        }
-        setSelectResModalOpen(false);
+            
+            addInvoice({
+                clientId: res.clientId,
+                reservationId: res.id,
+                items: [newItem],
+            } as Partial<Invoice>);
+        });
+        addToast({ message: `${selectedReservations.length} facture(s) générée(s).`, type: 'success' });
+        setSelectionModalOpen(false);
     };
 
     const monthlyRevenueData = useMemo(() => {
         const currentYear = new Date().getFullYear();
-        const monthNames = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Aoû", "Sep", "Oct", "Nov", "Déc"];
-        const data = monthNames.map(month => ({ month, revenue: 0 }));
-        invoices.forEach(inv => {
-            if (inv.status === InvoiceStatus.Paid && new Date(inv.issueDate).getFullYear() === currentYear) {
-                const monthIndex = new Date(inv.issueDate).getMonth();
-                data[monthIndex].revenue += inv.totalAmount;
-            }
+        const paidInvoices = invoices.filter(inv => inv.status === InvoiceStatus.Paid && new Date(inv.issueDate).getFullYear() === currentYear);
+        const monthlyData = Array.from({ length: 12 }, (_, i) => ({
+            month: new Date(0, i).toLocaleString('fr-FR', { month: 'short' }),
+            revenue: 0
+        }));
+        paidInvoices.forEach(inv => {
+            const monthIndex = new Date(inv.issueDate).getMonth();
+            monthlyData[monthIndex].revenue += inv.totalAmount;
         });
-        return data;
+        return monthlyData;
     }, [invoices]);
     
-    const showLoading = isLoading.invoices || isLoading.clients;
+    const isDataLoading = isLoading.invoices || isLoading.reservations || isLoading.clients || isLoading.bungalows;
 
     return (
         <div>
-            <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+            <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Facturation</h1>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        Gérez et suivez les factures de vos clients.
+                        Gérez les factures, suivez les paiements et générez de nouvelles factures.
                     </p>
                 </div>
-                {hasPermission('billing:write') && (
+                {canWrite && (
                     <div className="flex gap-2">
-                        <Button variant="secondary" onClick={() => setSelectResModalOpen(true)}>
-                            Facturer depuis une réservation
+                        <Button variant="secondary" onClick={() => setSelectionModalOpen(true)}>
+                            Facturer depuis Réservations
                         </Button>
-                        <Button onClick={() => { setEditingInvoice(null); setFormModalOpen(true); }}>
-                            Créer une facture manuelle
-                        </Button>
+                        <Button onClick={handleAddInvoice}>Créer une facture</Button>
                     </div>
                 )}
             </div>
             
-            <MonthlyRevenueChart data={monthlyRevenueData} currency={settings.financial.currency}/>
+            <MonthlyRevenueChart data={monthlyRevenueData} currency={settings.financial.currency} />
 
-            <InvoiceFilters onFilterChange={handleFilterChange} />
+            <InvoiceFilters onFilterChange={setFilters} />
             
-            {showLoading ? (
+            {isDataLoading ? (
                  <div className="text-center py-12">Chargement des factures...</div>
             ) : (
                 <InvoiceTable 
-                    invoices={filteredInvoices}
+                    invoices={filteredInvoices} 
                     clients={clients}
-                    onView={handleViewDetails}
+                    onView={handleViewInvoice}
                     onUpdateStatus={handleUpdateStatus}
                     onEdit={handleEditInvoice}
                 />
             )}
-            
-            {isDetailsModalOpen && selectedInvoice && selectedBungalow && selectedClient && (
+
+            {isDetailsModalOpen && selectedInvoice && (
                 <InvoiceDetailsModal
                     isOpen={isDetailsModalOpen}
                     onClose={() => setDetailsModalOpen(false)}
                     invoiceData={{
                         invoice: selectedInvoice,
-                        bungalow: selectedBungalow,
-                        client: selectedClient
+                        bungalow: bungalows.find(b => b.id === reservations.find(r => r.id === selectedInvoice.reservationId)?.bungalowId)!,
+                        client: clients.find(c => c.id === selectedInvoice.clientId)!
                     }}
                 />
             )}
             
-            {isFormModalOpen && (
-                <InvoiceFormModal 
+             {isFormModalOpen && (
+                <InvoiceFormModal
                     isOpen={isFormModalOpen}
                     onClose={() => setFormModalOpen(false)}
                     onSave={handleSaveInvoice}
-                    invoice={editingInvoice}
+                    invoice={selectedInvoice}
                     clients={clients}
                     reservations={reservations}
                 />
             )}
-            
-            {isSelectResModalOpen && (
+
+            {isSelectionModalOpen && (
                 <SelectReservationsModal
-                    isOpen={isSelectResModalOpen}
-                    onClose={() => setSelectResModalOpen(false)}
-                    onGenerate={handleGenerateInvoices}
+                    isOpen={isSelectionModalOpen}
+                    onClose={() => setSelectionModalOpen(false)}
+                    onGenerate={handleGenerateFromReservations}
                     reservationsToInvoice={reservationsToInvoice}
                     clients={clients}
                     bungalows={bungalows}

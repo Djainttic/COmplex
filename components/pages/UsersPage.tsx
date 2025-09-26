@@ -1,16 +1,18 @@
 // components/pages/UsersPage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, UserRole, UserStatus } from '../../types';
+import { User } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
+import { useToasts } from '../../hooks/useToasts';
+import { getVisibleUsers } from '../../constants';
+import Button from '../ui/Button';
 import UserTable from '../users/UserTable';
 import UserFormModal from '../users/UserFormModal';
-import Button from '../ui/Button';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import UserCreationSuccessModal from '../users/UserCreationSuccessModal';
-import { getVisibleUsers } from '../../constants';
 
 const UsersPage: React.FC = () => {
     const { currentUser, allUsers, fetchUsers, addUser, updateUser, deleteUser, hasPermission, loadingUsers } = useAuth();
+    const { addToast } = useToasts();
     
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -24,6 +26,8 @@ const UsersPage: React.FC = () => {
     }, [fetchUsers]);
 
     const visibleUsers = useMemo(() => getVisibleUsers(currentUser, allUsers), [currentUser, allUsers]);
+    
+    const canWrite = hasPermission('users:write');
 
     const handleAddUser = () => {
         setSelectedUser(null);
@@ -39,32 +43,30 @@ const UsersPage: React.FC = () => {
         setSelectedUser(user);
         setDeleteModalOpen(true);
     };
-
+    
     const confirmDelete = async () => {
         if (selectedUser) {
             await deleteUser(selectedUser.id);
+            addToast({ message: `L'utilisateur ${selectedUser.name} a été supprimé.`, type: 'success' });
             setDeleteModalOpen(false);
             setSelectedUser(null);
         }
     };
-    
-    const handleSaveUser = async (user: Partial<User>, password?: string) => {
-        if (user.id) { // Editing existing user
-            await updateUser(user);
+
+    const handleSaveUser = async (userData: Partial<User>, password?: string) => {
+        if (selectedUser) { // Editing existing user
+            await updateUser({ ...selectedUser, ...userData });
+            addToast({ message: `L'utilisateur ${userData.name} a été mis à jour.`, type: 'success' });
         } else { // Adding new user
-            if (password) {
-                const result = await addUser(user, password);
-                if (result.success && result.tempPass) {
-                    setNewUserCredentials({ email: user.email || '', temporaryPassword: result.tempPass });
-                    setSuccessModalOpen(true);
-                }
+            const result = await addUser(userData, password);
+            if (result.success && result.user && result.tempPassword) {
+                setNewUserCredentials({ email: result.user.email!, temporaryPassword: result.tempPassword });
+                setSuccessModalOpen(true);
             }
         }
         setFormModalOpen(false);
         setSelectedUser(null);
     };
-    
-    const canWrite = hasPermission('users:write');
 
     return (
         <div>
@@ -72,7 +74,7 @@ const UsersPage: React.FC = () => {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Gestion des Utilisateurs</h1>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        Ajoutez, modifiez et gérez les comptes des utilisateurs.
+                        Ajoutez, modifiez ou supprimez des utilisateurs et gérez leurs permissions.
                     </p>
                 </div>
                 {canWrite && (
@@ -83,7 +85,7 @@ const UsersPage: React.FC = () => {
             </div>
             
             {loadingUsers ? (
-                <div className="text-center py-12">Chargement des utilisateurs...</div>
+                 <div className="text-center py-12">Chargement des utilisateurs...</div>
             ) : (
                 <UserTable users={visibleUsers} onEdit={handleEditUser} onDelete={handleDeleteUser} />
             )}
@@ -96,7 +98,7 @@ const UsersPage: React.FC = () => {
                     user={selectedUser}
                 />
             )}
-            
+
             {isDeleteModalOpen && selectedUser && (
                 <ConfirmationModal
                     isOpen={isDeleteModalOpen}
@@ -110,7 +112,7 @@ const UsersPage: React.FC = () => {
             )}
             
             {isSuccessModalOpen && (
-                 <UserCreationSuccessModal
+                <UserCreationSuccessModal
                     isOpen={isSuccessModalOpen}
                     onClose={() => setSuccessModalOpen(false)}
                     credentials={newUserCredentials}

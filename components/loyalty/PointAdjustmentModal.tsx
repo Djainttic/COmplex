@@ -1,3 +1,4 @@
+// components/loyalty/PointAdjustmentModal.tsx
 import React, { useState } from 'react';
 import { Client } from '../../types';
 import Modal from '../ui/Modal';
@@ -6,28 +7,31 @@ import Button from '../ui/Button';
 interface PointAdjustmentModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (clientId: string, points: number, reason: string) => void;
+    onSave: (client: Client, pointsChange: number, reason: string) => void;
     client: Client;
 }
 
 const PointAdjustmentModal: React.FC<PointAdjustmentModalProps> = ({ isOpen, onClose, onSave, client }) => {
-    const [points, setPoints] = useState(0);
+    const [pointsChange, setPointsChange] = useState(0);
     const [reason, setReason] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (points === 0 || !reason.trim()) {
-            alert('Veuillez spécifier un nombre de points (non nul) et une raison.');
+        if (pointsChange === 0 || !reason.trim()) {
+            alert("Veuillez entrer une valeur de points et une raison.");
             return;
         }
-        onSave(client.id, points, reason);
+        onSave(client, pointsChange, reason);
     };
+
+    const currentPoints = client.loyaltyPoints || 0;
+    const newTotal = currentPoints + pointsChange;
 
     return (
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={`Ajuster les points pour ${client.name}`}
+            title={`Ajuster les points de ${client.name}`}
             footer={
                 <>
                     <Button variant="secondary" onClick={onClose}>Annuler</Button>
@@ -36,42 +40,42 @@ const PointAdjustmentModal: React.FC<PointAdjustmentModalProps> = ({ isOpen, onC
             }
         >
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-md text-center">
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Solde actuel</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{client.loyaltyPoints.toLocaleString('fr-FR')} points</p>
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-center">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Points actuels</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{currentPoints.toLocaleString('fr-FR')}</p>
                 </div>
-
                 <div>
-                    <label htmlFor="points" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Points à ajouter ou retirer
+                    <label htmlFor="pointsChange" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Changement (+/-)
                     </label>
                     <input
                         type="number"
-                        name="points"
-                        id="points"
-                        value={points}
-                        onChange={(e) => setPoints(parseInt(e.target.value, 10) || 0)}
-                        required
-                        placeholder="ex: 50 ou -20"
+                        id="pointsChange"
+                        value={pointsChange}
+                        onChange={(e) => setPointsChange(parseInt(e.target.value, 10) || 0)}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 sm:text-sm"
+                        placeholder="Ex: 50 ou -20"
                     />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Utilisez un nombre négatif pour retirer des points.</p>
                 </div>
-                
-                <div>
+                 <div>
                     <label htmlFor="reason" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Raison de l'ajustement
                     </label>
-                     <input
+                    <input
                         type="text"
-                        name="reason"
                         id="reason"
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
                         required
-                        placeholder="ex: Geste commercial, correction d'erreur..."
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 sm:text-sm"
+                        placeholder="Ex: Geste commercial, Correction..."
                     />
+                </div>
+                <div className="p-4 border-t dark:border-gray-600 text-center">
+                     <p className="text-sm text-gray-600 dark:text-gray-400">Nouveau total</p>
+                    <p className={`text-2xl font-bold ${pointsChange > 0 ? 'text-green-600' : pointsChange < 0 ? 'text-red-600' : 'text-gray-900 dark:text-white'}`}>
+                        {newTotal.toLocaleString('fr-FR')} points
+                    </p>
                 </div>
             </form>
         </Modal>

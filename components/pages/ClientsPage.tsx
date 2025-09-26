@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Client } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
+import { useToasts } from '../../hooks/useToasts';
 import Button from '../ui/Button';
 import ClientTable from '../clients/ClientTable';
 import ClientFormModal from '../clients/ClientFormModal';
@@ -10,25 +11,26 @@ import ConfirmationModal from '../ui/ConfirmationModal';
 
 const ClientsPage: React.FC = () => {
     const { hasPermission } = useAuth();
-    const { clients, addClient, updateClient, deleteClient, fetchClients, isLoading } = useData();
+    const { clients, fetchClients, addClient, updateClient, deleteClient, isLoading } = useData();
+    const { addToast } = useToasts();
     
-    const [searchTerm, setSearchTerm] = useState('');
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         fetchClients();
     }, [fetchClients]);
-    
+
     const filteredClients = useMemo(() => {
-        if (!searchTerm) return clients;
-        const lowercasedFilter = searchTerm.toLowerCase();
         return clients.filter(client =>
-            client.name.toLowerCase().includes(lowercasedFilter) ||
-            client.email.toLowerCase().includes(lowercasedFilter)
+            client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            client.email.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [clients, searchTerm]);
+
+    const canWrite = hasPermission('clients:write');
 
     const handleAddClient = () => {
         setSelectedClient(null);
@@ -41,9 +43,9 @@ const ClientsPage: React.FC = () => {
     };
 
     const handleDeleteClient = (clientId: string) => {
-        const client = clients.find(c => c.id === clientId);
-        if (client) {
-            setSelectedClient(client);
+        const clientToDelete = clients.find(c => c.id === clientId);
+        if(clientToDelete) {
+            setSelectedClient(clientToDelete);
             setDeleteModalOpen(true);
         }
     };
@@ -51,23 +53,23 @@ const ClientsPage: React.FC = () => {
     const confirmDelete = async () => {
         if (selectedClient) {
             await deleteClient(selectedClient.id);
+            addToast({ message: `Le client ${selectedClient.name} a été supprimé.`, type: 'success' });
             setDeleteModalOpen(false);
             setSelectedClient(null);
         }
     };
-    
-    const handleSaveClient = async (client: Client) => {
-        if (client.id) {
-            await updateClient(client);
-        } else {
-            await addClient(client);
+
+    const handleSaveClient = async (clientData: Client) => {
+        if (selectedClient) { // Editing
+            await updateClient({ ...selectedClient, ...clientData });
+            addToast({ message: `Le client ${clientData.name} a été mis à jour.`, type: 'success' });
+        } else { // Adding
+            await addClient(clientData);
+            addToast({ message: `Le client ${clientData.name} a été ajouté.`, type: 'success' });
         }
         setFormModalOpen(false);
         setSelectedClient(null);
     };
-    
-    const canWrite = hasPermission('clients:write');
-    const showLoading = isLoading.clients && clients.length === 0;
 
     return (
         <div>
@@ -75,7 +77,7 @@ const ClientsPage: React.FC = () => {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Gestion des Clients</h1>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        Consultez et gérez les informations de vos clients.
+                        Consultez et gérez votre base de données clients.
                     </p>
                 </div>
                 {canWrite && (
@@ -88,25 +90,21 @@ const ClientsPage: React.FC = () => {
             <div className="mb-6">
                 <input
                     type="search"
-                    placeholder="Rechercher par nom ou email..."
+                    placeholder="Rechercher un client par nom ou email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full max-w-sm px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600"
                 />
             </div>
             
-            {showLoading ? (
-                <div className="text-center py-12">Chargement des clients...</div>
+            {isLoading.clients ? (
+                 <div className="text-center py-12">Chargement des clients...</div>
             ) : (
-                <ClientTable 
-                    clients={filteredClients} 
-                    onEdit={handleEditClient} 
-                    onDelete={handleDeleteClient} 
-                />
+                <ClientTable clients={filteredClients} onEdit={handleEditClient} onDelete={handleDeleteClient} />
             )}
-            
+
             {isFormModalOpen && (
-                <ClientFormModal
+                 <ClientFormModal
                     isOpen={isFormModalOpen}
                     onClose={() => setFormModalOpen(false)}
                     onSave={handleSaveClient}
@@ -120,7 +118,7 @@ const ClientsPage: React.FC = () => {
                     onClose={() => setDeleteModalOpen(false)}
                     onConfirm={confirmDelete}
                     title="Supprimer le client"
-                    message={`Êtes-vous sûr de vouloir supprimer ${selectedClient.name} ? Toutes les données associées (réservations, factures) seront conservées mais ce client sera supprimé.`}
+                    message={`Êtes-vous sûr de vouloir supprimer ${selectedClient.name} ? Toutes les données associées (réservations, factures) seront conservées mais ce client sera retiré.`}
                     confirmText="Supprimer"
                     variant="danger"
                 />
