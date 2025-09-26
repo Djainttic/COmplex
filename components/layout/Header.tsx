@@ -17,7 +17,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     const userDropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
 
-    // CRITICAL FIX: Prevent rendering if currentUser is not yet available to avoid errors.
+    // Prevent rendering if currentUser is not yet available to avoid errors.
     if (!currentUser) {
         return null;
     }

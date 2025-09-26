@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-// FIX: Import PasswordPolicy type to use it for stronger type safety.
 import { SecuritySettings, PasswordPolicy } from '../../types';
 import Button from '../ui/Button';
 import { formatTimeAgo } from '../../constants';
@@ -86,7 +85,6 @@ const SecuritySettingsForm: React.FC = () => {
                                     return (
                                         <div key={key} className="relative flex items-start">
                                             <div className="flex items-center h-5">
-                                                {/* FIX: Use a more specific type assertion on the key to prevent 'symbol' index error. */}
                                                 <input id={key} name={key} type="checkbox"
                                                     checked={formData.passwordPolicy[key as keyof Omit<PasswordPolicy, 'minLength'>]}
                                                     onChange={handlePolicyChange} disabled={!canWrite}

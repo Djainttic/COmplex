@@ -27,7 +27,6 @@ const CommunicationFormModal: React.FC<CommunicationFormModalProps> = ({ isOpen,
         if (e.target.checked) {
             setSelectedClientIds(clients.map(c => c.id));
         } else {
-            // FIX: Use an empty array for state update, not a Set.
             setSelectedClientIds([]);
         }
     };
@@ -42,7 +41,6 @@ const CommunicationFormModal: React.FC<CommunicationFormModalProps> = ({ isOpen,
             recipients: selectedClientIds,
             subject,
             body,
-            // FIX: Corrected status to a valid type. The parent component uses a mock that always results in 'Envoyé'.
             status: 'Envoyé'
         });
     };

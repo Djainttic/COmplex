@@ -1,129 +1,119 @@
-import React, { useState, useEffect } from 'react';
+// components/pages/LoyaltyPage.tsx
+import React, { useState, useMemo, useEffect } from 'react';
+import { Client, LoyaltyLog, LoyaltyLogType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
-import { Client, LoyaltyLogType } from '../../types';
 import LoyaltyStats from '../loyalty/LoyaltyStats';
 import ClientLoyaltyTable from '../loyalty/ClientLoyaltyTable';
 import LoyaltyHistoryTable from '../loyalty/LoyaltyHistoryTable';
-import LoyaltySettingsForm from '../settings/LoyaltySettingsForm';
 import PointAdjustmentModal from '../loyalty/PointAdjustmentModal';
 
-type Tab = 'dashboard' | 'history' | 'settings';
-
 const LoyaltyPage: React.FC = () => {
-    const { currentUser, settings, hasPermission, allUsers, fetchUsers, loadingUsers } = useAuth();
-    const { clients, updateClient, loyaltyLogs, addLoyaltyLog, fetchClients, fetchLoyaltyLogs, isLoading: isDataLoading } = useData();
-    const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-    const [isModalOpen, setModalOpen] = useState(false);
-    const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+    const { settings, hasPermission, allUsers, fetchUsers, currentUser, loadingUsers } = useAuth();
+    const { 
+        clients, loyaltyLogs,
+        fetchClients, fetchLoyaltyLogs, addLoyaltyLog, updateClient,
+        isLoading: isDataLoading
+    } = useData();
 
-    const canWrite = hasPermission('loyalty:write');
+    const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+    const [isAdjustModalOpen, setAdjustModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<'clients' | 'history'>('clients');
 
     useEffect(() => {
         fetchClients();
         fetchLoyaltyLogs();
         fetchUsers();
     }, [fetchClients, fetchLoyaltyLogs, fetchUsers]);
-
-    const handleOpenModal = (client: Client) => {
+    
+    const handleOpenAdjustModal = (client: Client) => {
         setSelectedClient(client);
-        setModalOpen(true);
+        setAdjustModalOpen(true);
     };
 
-    const handleAdjustPoints = async (clientId: string, points: number, reason: string) => {
+    const handleSaveAdjustment = async (clientId: string, pointsChange: number, reason: string) => {
         const client = clients.find(c => c.id === clientId);
-        if (!client || !currentUser) return;
+        if (client && currentUser) {
+            const newTotal = (client.loyaltyPoints || 0) + pointsChange;
+            
+            // Update client points
+            await updateClient({ ...client, loyaltyPoints: newTotal });
 
-        const updatedClient = {
-            ...client,
-            loyaltyPoints: (client.loyaltyPoints || 0) + points
-        };
-        const updateResult = await updateClient(updatedClient);
-
-        if (updateResult.success) {
-            await addLoyaltyLog({
+            // Create a log entry
+            const logEntry: Omit<LoyaltyLog, 'id'> = {
                 clientId,
                 type: LoyaltyLogType.ManualAdjustment,
-                pointsChange: points,
+                pointsChange,
                 reason,
                 timestamp: new Date().toISOString(),
-                adminUserId: currentUser.id
-            });
-            setModalOpen(false);
-        } else {
-            alert(`Erreur lors de la mise à jour des points : ${updateResult.error?.message || 'Erreur inconnue'}`);
+                adminUserId: currentUser.id,
+            };
+            await addLoyaltyLog(logEntry);
         }
+        setAdjustModalOpen(false);
+        setSelectedClient(null);
     };
     
-    const showLoading = (isDataLoading.clients || isDataLoading.loyaltyLogs || loadingUsers) && clients.length === 0;
+    const canWrite = hasPermission('loyalty:write');
+    const isLoading = isDataLoading.clients || isDataLoading.loyaltyLogs || loadingUsers;
+    
+    const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c.name])), [clients]);
+    const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.name])), [allUsers]);
 
-    const renderTabContent = () => {
-        if (showLoading) {
-            return <div className="text-center py-12">Chargement des données de fidélité...</div>;
-        }
-        
-        switch (activeTab) {
-            case 'history':
-                return <LoyaltyHistoryTable 
-                            logs={loyaltyLogs} 
-                            clientMap={new Map(clients.map(c => [c.id, c.name]))}
-                            userMap={new Map(allUsers.map(u => [u.id, u.name]))}
-                        />;
-            case 'settings':
-                return <LoyaltySettingsForm />;
-            case 'dashboard':
-            default:
-                return (
-                    <>
-                        <LoyaltyStats clients={clients} settings={settings} />
-                        <div className="mt-8">
-                            <ClientLoyaltyTable clients={clients} onAdjustPoints={handleOpenModal} canWrite={canWrite} />
-                        </div>
-                    </>
-                );
-        }
-    };
-    
-    const TabButton: React.FC<{ tabName: Tab; label: string }> = ({ tabName, label }) => (
-        <button
-            onClick={() => setActiveTab(tabName)}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeTab === tabName
-                    ? 'bg-primary-600 text-white'
-                    : 'text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700'
-            }`}
-        >
-            {label}
-        </button>
-    );
+    if (!settings.loyalty.enabled) {
+        return (
+            <div>
+                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Programme de Fidélité</h1>
+                 <div className="mt-8 text-center bg-white dark:bg-gray-800 p-8 rounded-lg shadow">
+                    <p className="text-lg text-gray-700 dark:text-gray-300">Le programme de fidélité est actuellement désactivé.</p>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Vous pouvez l'activer dans les Paramètres sous l'onglet "Fidélité".
+                    </p>
+                 </div>
+            </div>
+        );
+    }
 
     return (
         <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Programme de Fidélité</h1>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Gérez les points de fidélité de vos clients et consultez l'historique des transactions.
+                Gérez les points de vos clients et consultez l'historique des transactions.
             </p>
 
             <div className="mt-6">
-                <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-                    <nav className="flex flex-wrap gap-2 sm:gap-x-4" aria-label="Tabs">
-                        <TabButton tabName="dashboard" label="Clients & Statistiques" />
-                        <TabButton tabName="history" label="Historique" />
-                        {canWrite && <TabButton tabName="settings" label="Paramètres" />}
+                <LoyaltyStats clients={clients} settings={settings} />
+            </div>
+            
+            <div className="mt-8">
+                <div className="border-b border-gray-200 dark:border-gray-700">
+                    <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button onClick={() => setActiveTab('clients')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'clients' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                            Solde des Clients
+                        </button>
+                        <button onClick={() => setActiveTab('history')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'history' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                            Historique des Points
+                        </button>
                     </nav>
                 </div>
-
-                <div>
-                    {renderTabContent()}
-                </div>
+            </div>
+            
+            <div className="mt-6">
+                {isLoading ? (
+                    <div className="text-center py-12">Chargement des données de fidélité...</div>
+                ) : activeTab === 'clients' ? (
+                    <ClientLoyaltyTable clients={clients} onAdjustPoints={handleOpenAdjustModal} canWrite={canWrite} />
+                ) : (
+                    <LoyaltyHistoryTable logs={loyaltyLogs} clientMap={clientMap} userMap={userMap} />
+                )}
             </div>
 
-            {isModalOpen && selectedClient && (
+            {isAdjustModalOpen && selectedClient && (
                 <PointAdjustmentModal
-                    isOpen={isModalOpen}
-                    onClose={() => setModalOpen(false)}
+                    isOpen={isAdjustModalOpen}
+                    onClose={() => setAdjustModalOpen(false)}
+                    onSave={handleSaveAdjustment}
                     client={selectedClient}
-                    onSave={handleAdjustPoints}
                 />
             )}
         </div>

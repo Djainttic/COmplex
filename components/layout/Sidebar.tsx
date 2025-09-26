@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -44,7 +42,7 @@ const NavItemLink: React.FC<{ item: NavItem }> = ({ item }) => {
 const SidebarContent: React.FC = () => {
     const { hasPermission, settings, currentUser } = useAuth();
 
-    // CRITICAL FIX: Prevent rendering if currentUser is not yet available.
+    // Prevent rendering if currentUser is not yet available.
     if (!currentUser) {
         return null;
     }

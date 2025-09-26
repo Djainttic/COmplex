@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { GoogleGenAI } from 'https://aistudiocdn.com/@google/genai@^1.20.0';
+// FIX: Import from package instead of URL, as per guidelines.
+import { GoogleGenAI } from "@google/genai";
 import { ReservationStatus, BungalowType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
@@ -90,11 +91,12 @@ const ReportsPage: React.FC = () => {
         const occupancyRate = totalBungalowNightsAvailable > 0 ? (totalBungalowNightsOccupied / totalBungalowNightsAvailable) * 100 : 0;
 
         const bungalowMap = new Map(bungalows.map(b => [b.id, b.type]));
-        const revenueByType = periodReservations.reduce((acc, r) => {
+        // FIX: Add explicit type for accumulator to help TypeScript's type inference.
+        const revenueByType = periodReservations.reduce((acc: Record<string, number>, r) => {
             const type = bungalowMap.get(r.bungalowId) || BungalowType.Standard;
             acc[type] = (acc[type] || 0) + r.totalPrice;
             return acc;
-        }, {} as Record<string, number>);
+        }, {});
 
         const chartData = Object.entries(revenueByType)
             .map(([name, value]) => ({ name, value }))

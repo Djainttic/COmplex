@@ -65,21 +65,39 @@ const DashboardPage: React.FC = () => {
         return { checkInsToday, checkOutsToday, occupancyRate, pendingMaintenance };
     }, [reservations, bungalows, maintenanceRequests]);
 
+    // FIX: Object literal may only specify known properties, and 'id' does not exist in type 'Omit<Reservation, "id">'.
+    // The `addReservation` function handles ID creation.
     const handleSaveReservation = (res: Reservation) => {
-        if (res.id) updateReservation(res);
-        else addReservation({ ...res, id: `res-${Date.now()}` });
+        if (res.id) {
+            updateReservation(res);
+        } else {
+            const { id, ...newReservationData } = res;
+            addReservation(newReservationData);
+        }
         setReservationModalOpen(false);
     };
     
+    // FIX: Object literal may only specify known properties, and 'id' does not exist in type 'Omit<Client, "id">'.
+    // The `addClient` function handles ID creation, and the form modal handles defaults.
     const handleSaveClient = (client: Client) => {
-        if (client.id) updateClient(client);
-        else addClient({ ...client, id: `client-${Date.now()}`, registrationDate: new Date().toISOString(), loyaltyPoints: 0 });
+        if (client.id) {
+            updateClient(client);
+        } else {
+            const { id, ...newClientData } = client;
+            addClient(newClientData);
+        }
         setClientModalOpen(false);
     };
 
+    // FIX: Object literal may only specify known properties, and 'id' does not exist in type 'Omit<MaintenanceRequest, "id">'.
+    // The `addMaintenanceRequest` function handles ID creation, and the form modal handles defaults.
     const handleSaveMaintenance = (req: MaintenanceRequest) => {
-        if (req.id) updateMaintenanceRequest(req);
-        else addMaintenanceRequest({ ...req, id: `maint-${Date.now()}`, createdDate: new Date().toISOString() });
+        if (req.id) {
+            updateMaintenanceRequest(req);
+        } else {
+            const { id, ...newRequestData } = req;
+            addMaintenanceRequest(newRequestData);
+        }
         setMaintenanceModalOpen(false);
     };
 

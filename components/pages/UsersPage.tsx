@@ -1,33 +1,29 @@
 // components/pages/UsersPage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
-import { User } from '../../types';
+import { User, UserRole, UserStatus } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import UserTable from '../users/UserTable';
 import UserFormModal from '../users/UserFormModal';
 import Button from '../ui/Button';
 import ConfirmationModal from '../ui/ConfirmationModal';
-import { getVisibleUsers } from '../../constants';
 import UserCreationSuccessModal from '../users/UserCreationSuccessModal';
+import { getVisibleUsers } from '../../constants';
 
 const UsersPage: React.FC = () => {
-    const { currentUser, allUsers, addUser, updateUser, deleteUser, hasPermission, fetchUsers, loadingUsers } = useAuth();
+    const { currentUser, allUsers, fetchUsers, addUser, updateUser, deleteUser, hasPermission, loadingUsers } = useAuth();
+    
     const [isFormModalOpen, setFormModalOpen] = useState(false);
-    const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
+    const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
     const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
-    const [newUserCredentials, setNewUserCredentials] = useState({ email: '', temporaryPassword: '' });
 
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [userToDelete, setUserToDelete] = useState<User | null>(null);
-    
-    const canWrite = hasPermission('users:write');
+    const [newUserCredentials, setNewUserCredentials] = useState({ email: '', temporaryPassword: '' });
 
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
 
-    const visibleUsers = useMemo(() => {
-        return getVisibleUsers(currentUser, allUsers);
-    }, [currentUser, allUsers]);
+    const visibleUsers = useMemo(() => getVisibleUsers(currentUser, allUsers), [currentUser, allUsers]);
 
     const handleAddUser = () => {
         setSelectedUser(null);
@@ -40,53 +36,35 @@ const UsersPage: React.FC = () => {
     };
 
     const handleDeleteUser = (user: User) => {
-        setUserToDelete(user);
-        setConfirmModalOpen(true);
+        setSelectedUser(user);
+        setDeleteModalOpen(true);
     };
 
     const confirmDelete = async () => {
-        if (userToDelete) {
-            const result = await deleteUser(userToDelete.id);
-            if (result.success) {
-                // The UI will update via realtime subscription
-            } else {
-                alert(`Erreur lors de la suppression : ${result.error?.message || 'Erreur inconnue'}`);
-            }
+        if (selectedUser) {
+            await deleteUser(selectedUser.id);
+            setDeleteModalOpen(false);
+            setSelectedUser(null);
         }
-        setConfirmModalOpen(false);
-        setUserToDelete(null);
     };
     
-    const handleSaveUser = async (userToSave: Partial<User>, password?: string) => {
-        let result;
-        if (userToSave.id) {
-            result = await updateUser(userToSave as User);
-        } else if (password) {
-            result = await addUser(userToSave, password);
-            if (result.success && result.data?.email) {
-                setNewUserCredentials({ email: result.data.email, temporaryPassword: password });
-                setSuccessModalOpen(true);
+    const handleSaveUser = async (user: Partial<User>, password?: string) => {
+        if (user.id) { // Editing existing user
+            await updateUser(user);
+        } else { // Adding new user
+            if (password) {
+                const result = await addUser(user, password);
+                if (result.success && result.tempPass) {
+                    setNewUserCredentials({ email: user.email || '', temporaryPassword: result.tempPass });
+                    setSuccessModalOpen(true);
+                }
             }
-        } else {
-            alert("Erreur : Un mot de passe est requis pour créer un nouvel utilisateur.");
-            return;
         }
-
-        if (result.success) {
-            setFormModalOpen(false);
-            setSelectedUser(null);
-        } else {
-            alert(`Erreur lors de la sauvegarde : ${result.error?.message || 'Une erreur inconnue est survenue.'}`);
-        }
+        setFormModalOpen(false);
+        setSelectedUser(null);
     };
-
-    if (loadingUsers && allUsers.length === 0) {
-        return (
-            <div className="w-full h-full flex items-center justify-center p-10">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600"></div>
-            </div>
-        );
-    }
+    
+    const canWrite = hasPermission('users:write');
 
     return (
         <div>
@@ -94,7 +72,7 @@ const UsersPage: React.FC = () => {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Gestion des Utilisateurs</h1>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        Ajoutez, modifiez et gérez les accès des utilisateurs de votre équipe.
+                        Ajoutez, modifiez et gérez les comptes des utilisateurs.
                     </p>
                 </div>
                 {canWrite && (
@@ -104,14 +82,14 @@ const UsersPage: React.FC = () => {
                 )}
             </div>
             
-            <UserTable 
-                users={visibleUsers}
-                onEdit={handleEditUser}
-                onDelete={handleDeleteUser}
-            />
+            {loadingUsers ? (
+                <div className="text-center py-12">Chargement des utilisateurs...</div>
+            ) : (
+                <UserTable users={visibleUsers} onEdit={handleEditUser} onDelete={handleDeleteUser} />
+            )}
 
             {isFormModalOpen && (
-                <UserFormModal
+                <UserFormModal 
                     isOpen={isFormModalOpen}
                     onClose={() => setFormModalOpen(false)}
                     onSave={handleSaveUser}
@@ -119,23 +97,23 @@ const UsersPage: React.FC = () => {
                 />
             )}
             
+            {isDeleteModalOpen && selectedUser && (
+                <ConfirmationModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => setDeleteModalOpen(false)}
+                    onConfirm={confirmDelete}
+                    title="Supprimer l'utilisateur"
+                    message={`Êtes-vous sûr de vouloir supprimer ${selectedUser.name} ? Cette action est irréversible.`}
+                    confirmText="Supprimer"
+                    variant="danger"
+                />
+            )}
+            
             {isSuccessModalOpen && (
-                <UserCreationSuccessModal
+                 <UserCreationSuccessModal
                     isOpen={isSuccessModalOpen}
                     onClose={() => setSuccessModalOpen(false)}
                     credentials={newUserCredentials}
-                />
-            )}
-
-            {isConfirmModalOpen && userToDelete && (
-                <ConfirmationModal
-                    isOpen={isConfirmModalOpen}
-                    onClose={() => setConfirmModalOpen(false)}
-                    onConfirm={confirmDelete}
-                    title="Confirmer la suppression"
-                    message={`Êtes-vous sûr de vouloir supprimer l'utilisateur ${userToDelete.name} ? Cette action est irréversible.`}
-                    confirmText="Supprimer"
-                    variant="danger"
                 />
             )}
         </div>

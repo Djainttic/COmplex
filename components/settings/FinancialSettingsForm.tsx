@@ -55,7 +55,6 @@ const FinancialSettingsForm: React.FC = () => {
                 <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
                      <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">Informations Fiscales (Algérie)</h3>
                      <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                        {/* FIX: Iterate over keys for type safety */}
                         {(Object.keys(formData.fiscalInfo) as Array<keyof FiscalInfo>).map((key) => (
                              <div className="sm:col-span-3" key={key}>
                                 <label htmlFor={key} className="block text-sm font-medium text-gray-700 dark:text-gray-300 uppercase">{key}</label>

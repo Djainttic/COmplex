@@ -1,5 +1,4 @@
 // constants.ts
-// FIX: Import User and UserRole types for getVisibleUsers function.
 import { Permission, User, UserRole } from './types';
 
 export interface NavItem {
@@ -57,7 +56,6 @@ export const formatTimeAgo = (dateString: string): string => {
     return "à l'instant";
 };
 
-// FIX: Add getVisibleUsers function to be used across user management pages.
 export const getVisibleUsers = (currentUser: User | null, allUsers: User[]): User[] => {
     if (!currentUser) return [];
     if (currentUser.role === UserRole.SuperAdmin) {

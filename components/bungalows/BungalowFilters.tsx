@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BungalowStatus, BungalowType } from '../../types';
 
@@ -27,7 +26,6 @@ const BungalowFilters: React.FC<BungalowFiltersProps> = ({ onFilterChange }) => 
             className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600"
           >
             <option value="">Tous</option>
-            {/* FIX: Explicitly cast enum values to string array for mapping */}
             {(Object.values(BungalowStatus) as string[]).map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
@@ -40,7 +38,6 @@ const BungalowFilters: React.FC<BungalowFiltersProps> = ({ onFilterChange }) => 
             className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600"
           >
             <option value="">Tous</option>
-            {/* FIX: Explicitly cast enum values to string array for mapping */}
             {(Object.values(BungalowType) as string[]).map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
