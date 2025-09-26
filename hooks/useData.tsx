@@ -41,7 +41,7 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// Helper mappers for Bungalow data type to handle camelCase/snake_case mismatch
+// Mapper for Bungalow data type to handle camelCase/snake_case mismatch
 const mapDbToBungalow = (dbBungalow: any): Bungalow => ({
     id: dbBungalow.id,
     name: dbBungalow.name,
@@ -65,6 +65,29 @@ const mapBungalowToDb = (bungalow: Partial<Bungalow>): any => {
     if (bungalow.amenities !== undefined) dbData.amenities = bungalow.amenities;
     if (bungalow.imageUrl !== undefined) dbData.image_url = bungalow.imageUrl;
     if (bungalow.description !== undefined) dbData.description = bungalow.description;
+    return dbData;
+};
+
+// Mapper for Client data type
+const mapDbToClient = (dbClient: any): Client => ({
+    id: dbClient.id,
+    name: dbClient.name,
+    email: dbClient.email,
+    phone: dbClient.phone,
+    address: dbClient.address,
+    registrationDate: dbClient.registration_date,
+    loyaltyPoints: dbClient.loyalty_points,
+});
+
+const mapClientToDb = (client: Partial<Client>): any => {
+    const dbData: any = {};
+    if (client.id !== undefined) dbData.id = client.id;
+    if (client.name !== undefined) dbData.name = client.name;
+    if (client.email !== undefined) dbData.email = client.email;
+    if (client.phone !== undefined) dbData.phone = client.phone;
+    if (client.address !== undefined) dbData.address = client.address;
+    if (client.registrationDate !== undefined) dbData.registration_date = client.registrationDate;
+    if (client.loyaltyPoints !== undefined) dbData.loyalty_points = client.loyaltyPoints;
     return dbData;
 };
 
@@ -109,7 +132,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (loyaltyError) throw loyaltyError;
 
                 setBungalows((bungalowsData as any[]).map(mapDbToBungalow) || []);
-                setClients((clientsData as any[]) || []);
+                setClients((clientsData as any[]).map(mapDbToClient) || []);
                 setReservations((reservationsData as any[]) || []);
                 setInvoices((invoicesData as any[]) || []);
                 setMaintenanceRequests((maintenanceData as any[]) || []);
@@ -150,7 +173,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         const bungalowChannel = createSubscription('bungalows', setBungalows, mapDbToBungalow);
-        const clientChannel = createSubscription('clients', setClients);
+        const clientChannel = createSubscription('clients', setClients, mapDbToClient);
         const reservationChannel = createSubscription('reservations', setReservations);
         const invoiceChannel = createSubscription('invoices', setInvoices);
         const maintenanceChannel = createSubscription('maintenance_requests', setMaintenanceRequests);
@@ -221,8 +244,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // --- Specific Bungalow Operations with Mapping ---
     const addBungalow = async (bungalow: Partial<Bungalow>): Promise<MutationResult<Bungalow>> => {
-        const { id, ...insertData } = mapBungalowToDb(bungalow);
-        const { data: newItems, error } = await supabase.from('bungalows').insert(insertData).select();
+        const dbReadyData = mapBungalowToDb(bungalow);
+        delete dbReadyData.id; // Explicitly remove id to let DB generate it
+
+        const { data: newItems, error } = await supabase.from('bungalows').insert(dbReadyData).select();
         if (error) {
             console.error(`Error adding to bungalows:`, error);
             return { success: false, error };
@@ -261,8 +286,38 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     // --- End Specific Bungalow Operations ---
 
-    // FIX: Add explicit generic types to the CRUD operation creators to ensure correct return types.
-    const clientOps = createCrudOperations<Client>('clients');
+     // --- Specific Client Operations with Mapping ---
+    const addClient = async (client: Partial<Client>): Promise<MutationResult<Client>> => {
+        const dbReadyData = mapClientToDb(client);
+        delete dbReadyData.id; // Explicitly remove id to let DB generate it
+
+        const { data: newItems, error } = await supabase.from('clients').insert(dbReadyData).select();
+        if (error) {
+            console.error(`Error adding to clients:`, error);
+            return { success: false, error };
+        }
+        if (!newItems || newItems.length === 0) {
+             console.warn(`Insert to clients succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
+        }
+        return { success: true, error: null, data: newItems?.[0] ? mapDbToClient(newItems[0]) : null };
+    };
+
+    const updateClient = async (client: Partial<Client>): Promise<MutationResult<Client>> => {
+        const dbData = mapClientToDb(client);
+        const { data: updatedItems, error } = await supabase.from('clients').update(dbData).eq('id', client.id).select();
+        if (error) {
+            console.error(`Error updating clients:`, error);
+            return { success: false, error };
+        }
+        if (!updatedItems || updatedItems.length === 0) {
+            console.warn(`Update to clients succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
+        }
+        return { success: true, error: null, data: updatedItems?.[0] ? mapDbToClient(updatedItems[0]) : null };
+    };
+
+    const deleteClient = createCrudOperations<Client>('clients').delete;
+    // --- End Specific Client Operations ---
+
     const invoiceOps = createCrudOperations<Invoice>('invoices');
     const maintenanceOps = createCrudOperations<MaintenanceRequest>('maintenance_requests');
     const communicationOps = createCrudOperations<CommunicationLog>('communication_logs');
@@ -302,9 +357,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         updateBungalowStatus,
         deleteBungalow,
         clients,
-        addClient: clientOps.add,
-        updateClient: clientOps.update,
-        deleteClient: clientOps.delete,
+        addClient,
+        updateClient,
+        deleteClient,
         reservations,
         updateReservation,
         addReservation,
@@ -331,7 +386,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useData = (): DataContextType => {
     const context = useContext(DataContext);
     if (context === undefined) {
-        throw new Error('useData must be used within a DataProvider');
+        throw new Error('useData must be used within a DataContext');
     }
     return context;
 };
