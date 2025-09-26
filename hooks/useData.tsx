@@ -1,13 +1,14 @@
 // hooks/useData.tsx
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, CommunicationLog, LoyaltyLog, ReservationStatus } from '../types';
+import { Bungalow, BungalowStatus, Client, Reservation, Invoice, MaintenanceRequest, CommunicationLog, LoyaltyLog, ReservationStatus } from '../types';
 
 type MutationResult<T> = { success: boolean; error: any | null; data?: T | T[] | null };
 
 interface DataContextType {
     bungalows: Bungalow[];
     updateBungalow: (bungalow: Partial<Bungalow>) => Promise<MutationResult<Bungalow>>;
+    updateBungalowStatus: (bungalowId: string, status: BungalowStatus) => Promise<MutationResult<Bungalow>>;
     addBungalow: (bungalow: Partial<Bungalow>) => Promise<MutationResult<Bungalow>>;
     deleteBungalow: (bungalowId: string) => Promise<MutationResult<null>>;
     
@@ -104,6 +105,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             const existingStart = new Date(res.startDate).getTime();
             const existingEnd = new Date(res.endDate).getTime();
+            // Check for any overlap
             return newStart < existingEnd && newEnd > existingStart;
         });
 
@@ -196,11 +198,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
         return { success: false, error };
     };
+    
+    // Granular update for single fields, good for RLS policies
+    const updateBungalowStatus = async (bungalowId: string, status: BungalowStatus): Promise<MutationResult<Bungalow>> => {
+        const { data: updatedItems, error } = await supabase
+            .from('bungalows')
+            .update({ status })
+            .eq('id', bungalowId)
+            .select();
+        
+        if (error) {
+            console.error(`Error updating bungalow status:`, error);
+            return { success: false, error };
+        }
+        if (updatedItems && updatedItems.length > 0) {
+            const updatedItem = updatedItems[0] as Bungalow;
+            setBungalows(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+            return { success: true, error: null, data: updatedItem };
+        }
+        const silentError = { message: 'Update succeeded but no data was returned. Check RLS policies.' };
+        console.error(silentError.message);
+        return { success: false, error: silentError };
+    };
 
     const value: DataContextType = useMemo(() => ({
         bungalows,
         addBungalow: bungalowOps.add,
         updateBungalow: bungalowOps.update,
+        updateBungalowStatus,
         deleteBungalow: bungalowOps.delete,
         clients,
         addClient: clientOps.add,

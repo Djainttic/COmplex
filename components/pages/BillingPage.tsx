@@ -52,66 +52,78 @@ const BillingPage: React.FC = () => {
     const handleUpdateStatus = async (invoiceId: string, status: InvoiceStatus) => {
         if (!canWrite) return;
         const invoiceToUpdate = invoices.find(inv => inv.id === invoiceId);
-        if (!invoiceToUpdate) return;
-        
-        if (invoiceToUpdate.status === status) return;
+        if (!invoiceToUpdate || invoiceToUpdate.status === status) return;
 
-        const result = await updateInvoice({ ...invoiceToUpdate, status });
-        
-        if (!result.success) {
-            alert(`Erreur lors de la mise à jour du statut : ${result.error?.message || 'Erreur inconnue'}`);
-            return;
-        }
+        // --- Start of Client-Side Transaction ---
+        // IDEAL IMPLEMENTATION: This entire block should be a single Supabase Edge Function 
+        // to ensure atomicity. If any step fails, the entire transaction should roll back.
+        // This client-side implementation simulates that behavior.
 
-        if (status === InvoiceStatus.Paid && settings.loyalty.enabled) {
-            const reservation = reservations.find(r => r.id === invoiceToUpdate.reservationId);
-            const client = clients.find(c => c.id === invoiceToUpdate.clientId);
-            if (!reservation || !client) {
-                alert(`Facture marquée comme payée, mais le client ou la réservation associée n'a pas pu être trouvé pour l'attribution des points.`);
-                return;
-            }
-            const nights = Math.ceil((new Date(reservation.endDate).getTime() - new Date(reservation.startDate).getTime()) / (1000 * 3600 * 24));
-            const pointsForStay = (nights > 0 ? nights : 1) * settings.loyalty.pointsPerNight;
-            
-            const previouslyPaidInvoices = invoices.filter(inv => inv.clientId === client.id && inv.status === InvoiceStatus.Paid && inv.id !== invoiceToUpdate.id);
-            const isFirstPaidReservation = previouslyPaidInvoices.length === 0;
-            const bonusPoints = isFirstPaidReservation ? settings.loyalty.pointsForFirstReservation : 0;
-            
-            let totalPointsToAdd = 0;
-            
-            if (pointsForStay > 0) {
-                 await addLoyaltyLog({
-                    clientId: client.id,
-                    type: LoyaltyLogType.Earned,
-                    pointsChange: pointsForStay,
-                    reason: `Points pour séjour (${nights} nuits)`,
-                    relatedId: reservation.id,
-                    timestamp: new Date().toISOString()
-                });
-                totalPointsToAdd += pointsForStay;
-            }
-            
-            if (bonusPoints > 0) {
-                 await addLoyaltyLog({
-                    clientId: client.id,
-                    type: LoyaltyLogType.InitialBonus,
-                    pointsChange: bonusPoints,
-                    reason: 'Bonus de première réservation',
-                    relatedId: reservation.id,
-                    timestamp: new Date().toISOString()
-                });
-                totalPointsToAdd += bonusPoints;
-            }
+        try {
+            // Step 1: Update the invoice status
+            const updateResult = await updateInvoice({ ...invoiceToUpdate, status });
+            if (!updateResult.success) throw new Error("La mise à jour du statut de la facture a échoué.");
 
-            if (totalPointsToAdd > 0) {
-                await updateClient({ ...client, loyaltyPoints: client.loyaltyPoints + totalPointsToAdd });
-                alert(`Facture marquée comme payée. ${totalPointsToAdd} points de fidélité ont été ajoutés à ${client.name}.`);
+            // Step 2: If paid and loyalty is enabled, award points
+            if (status === InvoiceStatus.Paid && settings.loyalty.enabled) {
+                const reservation = reservations.find(r => r.id === invoiceToUpdate.reservationId);
+                const client = clients.find(c => c.id === invoiceToUpdate.clientId);
+                if (!reservation || !client) {
+                    console.warn(`Invoice ${invoiceId} paid, but client or reservation not found for loyalty points.`);
+                    alert(`Facture marquée comme payée, mais le client ou la réservation associée n'a pas pu être trouvé pour l'attribution des points.`);
+                    return; // Exit successfully, as the main action (payment) is done.
+                }
+
+                const nights = Math.max(1, Math.ceil((new Date(reservation.endDate).getTime() - new Date(reservation.startDate).getTime()) / (1000 * 3600 * 24)));
+                const pointsForStay = nights * settings.loyalty.pointsPerNight;
+                
+                const previouslyPaidInvoices = invoices.filter(inv => inv.clientId === client.id && inv.status === InvoiceStatus.Paid && inv.id !== invoiceToUpdate.id);
+                const isFirstPaidReservation = previouslyPaidInvoices.length === 0;
+                const bonusPoints = isFirstPaidReservation ? settings.loyalty.pointsForFirstReservation : 0;
+                
+                let totalPointsToAdd = 0;
+                
+                // Step 2a: Log points for the stay
+                if (pointsForStay > 0) {
+                    const logResult = await addLoyaltyLog({
+                        clientId: client.id, type: LoyaltyLogType.Earned, pointsChange: pointsForStay,
+                        reason: `Points pour séjour (${nights} nuits)`, relatedId: reservation.id,
+                        timestamp: new Date().toISOString()
+                    });
+                    if (!logResult.success) throw new Error("L'ajout du log de fidélité pour le séjour a échoué.");
+                    totalPointsToAdd += pointsForStay;
+                }
+                
+                // Step 2b: Log bonus points for first reservation
+                if (bonusPoints > 0) {
+                    const bonusLogResult = await addLoyaltyLog({
+                        clientId: client.id, type: LoyaltyLogType.InitialBonus, pointsChange: bonusPoints,
+                        reason: 'Bonus de première réservation', relatedId: reservation.id,
+                        timestamp: new Date().toISOString()
+                    });
+                    if (!bonusLogResult.success) throw new Error("L'ajout du log de fidélité pour le bonus a échoué.");
+                    totalPointsToAdd += bonusPoints;
+                }
+
+                // Step 2c: Update client's total points
+                if (totalPointsToAdd > 0) {
+                    const clientUpdateResult = await updateClient({ ...client, loyaltyPoints: client.loyaltyPoints + totalPointsToAdd });
+                    if (!clientUpdateResult.success) throw new Error("La mise à jour du solde de points du client a échoué.");
+                    alert(`Facture marquée comme payée. ${totalPointsToAdd} points de fidélité ont été ajoutés à ${client.name}.`);
+                } else {
+                    alert(`Facture marquée comme payée.`);
+                }
             } else {
-                alert(`Facture marquée comme payée.`);
+                alert(`Statut de la facture mis à jour.`);
             }
-        } else {
-            alert(`Statut de la facture mis à jour.`);
+        } catch (error: any) {
+            console.error("Transaction failed:", error);
+            alert(`Une erreur est survenue lors de la mise à jour : ${error.message}. L'état des données peut être incohérent. Veuillez vérifier.`);
+            // In a real transactional system, we would attempt a rollback here.
+            // For now, we revert the initial status change if possible.
+            await updateInvoice({ ...invoiceToUpdate, status: invoiceToUpdate.status });
         }
+        // --- End of Client-Side Transaction ---
     };
     
     const unvoicedConfirmedReservations = useMemo(() => {

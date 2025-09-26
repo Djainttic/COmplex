@@ -3,16 +3,18 @@ import React, { useState } from 'react';
 import { Bungalow, BungalowStatus } from '../../types';
 import Badge from '../ui/Badge';
 import { useAuth } from '../../hooks/useAuth';
+import { useData } from '../../hooks/useData';
 
 interface BungalowCardProps {
   bungalow: Bungalow;
   onEdit: (bungalow: Bungalow) => void;
   onDelete: (bungalowId: string) => void;
-  onUpdateBungalow: (bungalow: Bungalow) => void; // For quick status/data changes
+  onUpdateBungalow: (bungalow: Bungalow) => void; // For quick data changes like amenities
 }
 
 const BungalowCard: React.FC<BungalowCardProps> = ({ bungalow, onEdit, onDelete, onUpdateBungalow }) => {
     const { hasPermission, settings } = useAuth();
+    const { updateBungalowStatus } = useData();
     const canUpdate = hasPermission('bungalows:update');
     const canDelete = hasPermission('bungalows:delete');
     const canUpdateStatus = hasPermission('bungalows:update_status');
@@ -38,8 +40,12 @@ const BungalowCard: React.FC<BungalowCardProps> = ({ bungalow, onEdit, onDelete,
         }
     };
     
-    const handleStatusChange = (newStatus: BungalowStatus) => {
-        onUpdateBungalow({ ...bungalow, status: newStatus });
+    const handleStatusChange = async (newStatus: BungalowStatus) => {
+        const result = await updateBungalowStatus(bungalow.id, newStatus);
+        if (!result.success) {
+            alert(`Erreur lors de la mise à jour du statut : ${result.error?.message || 'Erreur inconnue'}`);
+            // Note: The UI won't change if the update fails, as the local state is only updated on success.
+        }
     };
 
     const handleAddAmenity = () => {
