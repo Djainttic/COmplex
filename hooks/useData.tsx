@@ -209,9 +209,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const createCrudOperations = <T extends {id: string}>(table: string) => ({
         add: async (data: Partial<T>): Promise<MutationResult<T>> => {
-            const insertData = { ...data };
-            // Explicitly delete 'id' to let the database generate it.
-            delete (insertData as any).id;
+            // DEFINITIVE FIX: Destructure the id out to ensure it's not sent to the database on insert.
+            const { id, ...insertData } = data;
             
             const { data: newItems, error } = await supabase.from(table).insert(insertData as any).select();
             
@@ -247,10 +246,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // --- Specific Bungalow Operations with Mapping ---
     const addBungalow = async (bungalow: Partial<Bungalow>): Promise<MutationResult<Bungalow>> => {
-        const dataToInsert = { ...bungalow };
-        // DEFINITIVE FIX: Explicitly delete the id property to prevent the "violates not-null constraint" error.
-        delete dataToInsert.id;
-
+        // DEFINITIVE FIX: Destructure the id out to ensure it's not sent.
+        const { id, ...dataToInsert } = bungalow;
         const dbReadyData = mapBungalowToDb(dataToInsert);
 
         const { data: newItems, error } = await supabase.from('bungalows').insert(dbReadyData).select();
@@ -294,10 +291,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
      // --- Specific Client Operations with Mapping ---
     const addClient = async (client: Partial<Client>): Promise<MutationResult<Client>> => {
-        const dataToInsert = { ...client };
-        // DEFINITIVE FIX: Explicitly delete the id property to prevent the "violates not-null constraint" error.
-        delete dataToInsert.id;
-        
+        // DEFINITIVE FIX: Destructure the id out to ensure it's not sent.
+        const { id, ...dataToInsert } = client;
         const dbReadyData = mapClientToDb(dataToInsert);
 
         const { data: newItems, error } = await supabase.from('clients').insert(dbReadyData).select();
