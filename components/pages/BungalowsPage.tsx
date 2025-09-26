@@ -34,11 +34,21 @@ const BungalowsPage: React.FC = () => {
         }
     };
 
-    const handleSaveBungalow = async (bungalowToSave: Bungalow) => {
-        if (bungalowToSave.id) { // Editing
-            await updateBungalow(bungalowToSave);
+    const handleSaveBungalow = async (bungalowDataFromModal: Bungalow) => {
+        if (bungalowDataFromModal.id) { // Editing
+            await updateBungalow(bungalowDataFromModal);
         } else { // Adding
-            await addBungalow(bungalowToSave);
+            // Explicitly create the object for Supabase, omitting the empty 'id' field.
+            // This ensures Supabase can generate a new ID without conflicts.
+            const { id, ...newBungalowData } = bungalowDataFromModal;
+            const result = await addBungalow(newBungalowData);
+            if (result.error) {
+                // If there's an error, show it to the user.
+                console.error("Failed to add bungalow:", result.error);
+                alert(`Erreur lors de l'ajout du bungalow : ${result.error.message}`);
+                // Don't close the modal on error
+                return; 
+            }
         }
         setModalOpen(false);
         setSelectedBungalow(null);
