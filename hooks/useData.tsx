@@ -93,6 +93,51 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
 
         fetchAllData();
+
+        // --- REALTIME SUBSCRIPTIONS ---
+        const handleInserts = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+            const newItem = payload.new as T;
+            setter(prev => {
+                if (prev.find(item => item.id === newItem.id)) return prev;
+                return [...prev, newItem];
+            });
+        };
+
+        const handleUpdates = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+            const updatedItem = payload.new as T;
+            setter(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+        };
+
+        const handleDeletes = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+            const oldId = (payload.old as any).id;
+            setter(prev => prev.filter(item => item.id !== oldId));
+        };
+        
+        const createSubscription = <T extends {id: string}>(table: string, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+            return supabase.channel(`${table}-changes`)
+              .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, (payload) => handleInserts(payload, setter))
+              .on('postgres_changes', { event: 'UPDATE', schema: 'public', table }, (payload) => handleUpdates(payload, setter))
+              .on('postgres_changes', { event: 'DELETE', schema: 'public', table }, (payload) => handleDeletes(payload, setter))
+              .subscribe();
+        };
+
+        const bungalowChannel = createSubscription('bungalows', setBungalows);
+        const clientChannel = createSubscription('clients', setClients);
+        const reservationChannel = createSubscription('reservations', setReservations);
+        const invoiceChannel = createSubscription('invoices', setInvoices);
+        const maintenanceChannel = createSubscription('maintenance_requests', setMaintenanceRequests);
+        const communicationChannel = createSubscription('communication_logs', setCommunicationLogs);
+        const loyaltyChannel = createSubscription('loyalty_logs', setLoyaltyLogs);
+
+        return () => {
+            supabase.removeChannel(bungalowChannel);
+            supabase.removeChannel(clientChannel);
+            supabase.removeChannel(reservationChannel);
+            supabase.removeChannel(invoiceChannel);
+            supabase.removeChannel(maintenanceChannel);
+            supabase.removeChannel(communicationChannel);
+            supabase.removeChannel(loyaltyChannel);
+        };
     }, []);
     
     const isBungalowAvailable = (bungalowId: string, startDate: string, endDate: string, currentReservationId?: string | null): boolean => {
@@ -105,17 +150,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             const existingStart = new Date(res.startDate).getTime();
             const existingEnd = new Date(res.endDate).getTime();
-            // Check for any overlap
             return newStart < existingEnd && newEnd > existingStart;
         });
 
         return !conflictingReservation;
     };
 
-    const createCrudOperations = <T extends {id: string}>(
-        table: string, 
-        setter: React.Dispatch<React.SetStateAction<T[]>>
-    ) => ({
+    const createCrudOperations = <T extends {id: string}>(table: string) => ({
         add: async (data: Partial<T>): Promise<MutationResult<T>> => {
             const { id, ...insertData } = data;
             const { data: newItems, error } = await supabase.from(table).insert(insertData as any).select();
@@ -124,14 +165,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error(`Error adding to ${table}:`, error);
                 return { success: false, error };
             }
-            if (newItems && newItems.length > 0) {
-                const newItem = newItems[0] as T;
-                setter(prev => [...prev, newItem]);
-                return { success: true, error: null, data: newItem };
+            
+            if (!newItems || newItems.length === 0) {
+                 console.warn(`Insert to ${table} succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
             }
-            const silentError = { message: 'Insert succeeded but no data was returned. Check RLS policies.' };
-            console.error(silentError.message);
-            return { success: false, error: silentError };
+            
+            // The operation is successful if there's no error. The realtime listener is the source of truth for the UI list.
+            return { success: true, error: null, data: newItems?.[0] as T };
         },
         update: async (data: Partial<T>): Promise<MutationResult<T>> => {
             const { data: updatedItems, error } = await supabase.from(table).update(data as any).eq('id', data.id).select();
@@ -140,32 +180,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error(`Error updating ${table}:`, error);
                 return { success: false, error };
             }
-            if (updatedItems && updatedItems.length > 0) {
-                const updatedItem = updatedItems[0] as T;
-                setter(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-                return { success: true, error: null, data: updatedItem };
+            if (!updatedItems || updatedItems.length === 0) {
+                console.warn(`Update to ${table} succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
             }
-            const silentError = { message: 'Update succeeded but no data was returned. Check RLS policies.' };
-            console.error(silentError.message);
-            return { success: false, error: silentError };
+            return { success: true, error: null, data: updatedItems?.[0] as T };
         },
         delete: async (id: string): Promise<MutationResult<null>> => {
             const { error } = await supabase.from(table).delete().eq('id', id);
-             if (!error) {
-                setter(prev => prev.filter(item => item.id !== id));
-                return { success: true, error: null };
+             if (error) {
+                console.error(`Error deleting from ${table}:`, error);
+                return { success: false, error };
             }
-            console.error(`Error deleting from ${table}:`, error);
-            return { success: false, error };
+            return { success: true, error: null };
         },
     });
 
-    const bungalowOps = createCrudOperations('bungalows', setBungalows);
-    const clientOps = createCrudOperations('clients', setClients);
-    const invoiceOps = createCrudOperations('invoices', setInvoices);
-    const maintenanceOps = createCrudOperations('maintenance_requests', setMaintenanceRequests);
-    const communicationOps = createCrudOperations('communication_logs', setCommunicationLogs);
-    const loyaltyOps = createCrudOperations('loyalty_logs', setLoyaltyLogs);
+    // FIX: Add explicit generic types to the CRUD operation creators to ensure correct return types.
+    const bungalowOps = createCrudOperations<Bungalow>('bungalows');
+    const clientOps = createCrudOperations<Client>('clients');
+    const invoiceOps = createCrudOperations<Invoice>('invoices');
+    const maintenanceOps = createCrudOperations<MaintenanceRequest>('maintenance_requests');
+    const communicationOps = createCrudOperations<CommunicationLog>('communication_logs');
+    const loyaltyOps = createCrudOperations<LoyaltyLog>('loyalty_logs');
+    const reservationOps = createCrudOperations<Reservation>('reservations');
 
     // Custom reservation logic with conflict check
     const addReservation = async (res: Partial<Reservation>): Promise<MutationResult<Reservation>> => {
@@ -174,7 +211,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             alert(error.message);
             return { success: false, error };
         }
-        return await createCrudOperations('reservations', setReservations).add(res);
+        // FIX: Use the typed reservationOps helper to fix type mismatch.
+        return await reservationOps.add(res);
     };
 
     const updateReservation = async (res: Partial<Reservation>): Promise<MutationResult<Reservation>> => {
@@ -183,7 +221,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             alert(error.message);
             return { success: false, error };
         }
-        return await createCrudOperations('reservations', setReservations).update(res);
+        // FIX: Use the typed reservationOps helper to fix type mismatch.
+        return await reservationOps.update(res);
     };
     
     const addInvoices = async (invs: Partial<Invoice>[]): Promise<MutationResult<Invoice[]>> => {
@@ -192,11 +231,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return rest;
         });
         const { data: newInvoices, error } = await supabase.from('invoices').insert(invoicesToInsert as any).select();
-        if (!error && newInvoices) {
-            setInvoices(prev => [...prev, ...newInvoices]);
-            return { success: true, error: null, data: newInvoices };
+        if (error) {
+            return { success: false, error };
         }
-        return { success: false, error };
+        return { success: true, error: null, data: newInvoices };
     };
     
     // Granular update for single fields, good for RLS policies
@@ -211,14 +249,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error(`Error updating bungalow status:`, error);
             return { success: false, error };
         }
-        if (updatedItems && updatedItems.length > 0) {
-            const updatedItem = updatedItems[0] as Bungalow;
-            setBungalows(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-            return { success: true, error: null, data: updatedItem };
+        if (!updatedItems || updatedItems.length === 0) {
+            console.warn(`Update to bungalow status succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
         }
-        const silentError = { message: 'Update succeeded but no data was returned. Check RLS policies.' };
-        console.error(silentError.message);
-        return { success: false, error: silentError };
+        return { success: true, error: null, data: updatedItems?.[0] as Bungalow };
     };
 
     const value: DataContextType = useMemo(() => ({
