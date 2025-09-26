@@ -41,6 +41,34 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+// Helper mappers for Bungalow data type to handle camelCase/snake_case mismatch
+const mapDbToBungalow = (dbBungalow: any): Bungalow => ({
+    id: dbBungalow.id,
+    name: dbBungalow.name,
+    type: dbBungalow.type,
+    status: dbBungalow.status,
+    capacity: dbBungalow.capacity,
+    pricePerNight: dbBungalow.price_per_night,
+    amenities: dbBungalow.amenities,
+    imageUrl: dbBungalow.image_url,
+    description: dbBungalow.description,
+});
+
+const mapBungalowToDb = (bungalow: Partial<Bungalow>): any => {
+    const dbData: any = {};
+    if (bungalow.id !== undefined) dbData.id = bungalow.id;
+    if (bungalow.name !== undefined) dbData.name = bungalow.name;
+    if (bungalow.type !== undefined) dbData.type = bungalow.type;
+    if (bungalow.status !== undefined) dbData.status = bungalow.status;
+    if (bungalow.capacity !== undefined) dbData.capacity = bungalow.capacity;
+    if (bungalow.pricePerNight !== undefined) dbData.price_per_night = bungalow.pricePerNight;
+    if (bungalow.amenities !== undefined) dbData.amenities = bungalow.amenities;
+    if (bungalow.imageUrl !== undefined) dbData.image_url = bungalow.imageUrl;
+    if (bungalow.description !== undefined) dbData.description = bungalow.description;
+    return dbData;
+};
+
+
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     
     const [bungalows, setBungalows] = useState<Bungalow[]>([]);
@@ -80,7 +108,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (communicationError) throw communicationError;
                 if (loyaltyError) throw loyaltyError;
 
-                setBungalows((bungalowsData as any[]) || []);
+                setBungalows((bungalowsData as any[]).map(mapDbToBungalow) || []);
                 setClients((clientsData as any[]) || []);
                 setReservations((reservationsData as any[]) || []);
                 setInvoices((invoicesData as any[]) || []);
@@ -95,16 +123,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchAllData();
 
         // --- REALTIME SUBSCRIPTIONS ---
-        const handleInserts = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
-            const newItem = payload.new as T;
+        const handleInserts = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>, mapper?: (item: any) => T) => {
+            const newItem = mapper ? mapper(payload.new) : (payload.new as T);
             setter(prev => {
                 if (prev.find(item => item.id === newItem.id)) return prev;
                 return [...prev, newItem];
             });
         };
 
-        const handleUpdates = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
-            const updatedItem = payload.new as T;
+        const handleUpdates = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>, mapper?: (item: any) => T) => {
+            const updatedItem = mapper ? mapper(payload.new) : (payload.new as T);
             setter(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
         };
 
@@ -113,15 +141,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setter(prev => prev.filter(item => item.id !== oldId));
         };
         
-        const createSubscription = <T extends {id: string}>(table: string, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+        const createSubscription = <T extends {id: string}>(table: string, setter: React.Dispatch<React.SetStateAction<T[]>>, mapper?: (dbItem: any) => T) => {
             return supabase.channel(`${table}-changes`)
-              .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, (payload) => handleInserts(payload, setter))
-              .on('postgres_changes', { event: 'UPDATE', schema: 'public', table }, (payload) => handleUpdates(payload, setter))
+              .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, (payload) => handleInserts(payload, setter, mapper))
+              .on('postgres_changes', { event: 'UPDATE', schema: 'public', table }, (payload) => handleUpdates(payload, setter, mapper))
               .on('postgres_changes', { event: 'DELETE', schema: 'public', table }, (payload) => handleDeletes(payload, setter))
               .subscribe();
         };
 
-        const bungalowChannel = createSubscription('bungalows', setBungalows);
+        const bungalowChannel = createSubscription('bungalows', setBungalows, mapDbToBungalow);
         const clientChannel = createSubscription('clients', setClients);
         const reservationChannel = createSubscription('reservations', setReservations);
         const invoiceChannel = createSubscription('invoices', setInvoices);
@@ -165,17 +193,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error(`Error adding to ${table}:`, error);
                 return { success: false, error };
             }
-            
             if (!newItems || newItems.length === 0) {
                  console.warn(`Insert to ${table} succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
             }
-            
-            // The operation is successful if there's no error. The realtime listener is the source of truth for the UI list.
             return { success: true, error: null, data: newItems?.[0] as T };
         },
         update: async (data: Partial<T>): Promise<MutationResult<T>> => {
             const { data: updatedItems, error } = await supabase.from(table).update(data as any).eq('id', data.id).select();
-
              if (error) {
                 console.error(`Error updating ${table}:`, error);
                 return { success: false, error };
@@ -195,8 +219,49 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         },
     });
 
+    // --- Specific Bungalow Operations with Mapping ---
+    const addBungalow = async (bungalow: Partial<Bungalow>): Promise<MutationResult<Bungalow>> => {
+        const { id, ...insertData } = mapBungalowToDb(bungalow);
+        const { data: newItems, error } = await supabase.from('bungalows').insert(insertData).select();
+        if (error) {
+            console.error(`Error adding to bungalows:`, error);
+            return { success: false, error };
+        }
+        if (!newItems || newItems.length === 0) {
+             console.warn(`Insert to bungalows succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
+        }
+        return { success: true, error: null, data: newItems?.[0] ? mapDbToBungalow(newItems[0]) : null };
+    };
+
+    const updateBungalow = async (bungalow: Partial<Bungalow>): Promise<MutationResult<Bungalow>> => {
+        const dbData = mapBungalowToDb(bungalow);
+        const { data: updatedItems, error } = await supabase.from('bungalows').update(dbData).eq('id', bungalow.id).select();
+        if (error) {
+            console.error(`Error updating bungalows:`, error);
+            return { success: false, error };
+        }
+        if (!updatedItems || updatedItems.length === 0) {
+            console.warn(`Update to bungalows succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
+        }
+        return { success: true, error: null, data: updatedItems?.[0] ? mapDbToBungalow(updatedItems[0]) : null };
+    };
+    
+    const deleteBungalow = createCrudOperations<Bungalow>('bungalows').delete;
+
+    const updateBungalowStatus = async (bungalowId: string, status: BungalowStatus): Promise<MutationResult<Bungalow>> => {
+        const { data: updatedItems, error } = await supabase.from('bungalows').update({ status }).eq('id', bungalowId).select();
+        if (error) {
+            console.error(`Error updating bungalow status:`, error);
+            return { success: false, error };
+        }
+        if (!updatedItems || updatedItems.length === 0) {
+            console.warn(`Update to bungalow status succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
+        }
+        return { success: true, error: null, data: updatedItems?.[0] ? mapDbToBungalow(updatedItems[0]) : null };
+    };
+    // --- End Specific Bungalow Operations ---
+
     // FIX: Add explicit generic types to the CRUD operation creators to ensure correct return types.
-    const bungalowOps = createCrudOperations<Bungalow>('bungalows');
     const clientOps = createCrudOperations<Client>('clients');
     const invoiceOps = createCrudOperations<Invoice>('invoices');
     const maintenanceOps = createCrudOperations<MaintenanceRequest>('maintenance_requests');
@@ -204,14 +269,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const loyaltyOps = createCrudOperations<LoyaltyLog>('loyalty_logs');
     const reservationOps = createCrudOperations<Reservation>('reservations');
 
-    // Custom reservation logic with conflict check
     const addReservation = async (res: Partial<Reservation>): Promise<MutationResult<Reservation>> => {
         if (!isBungalowAvailable(res.bungalowId!, res.startDate!, res.endDate!)) {
             const error = { message: "Erreur : Ce bungalow est déjà réservé pour ces dates."};
             alert(error.message);
             return { success: false, error };
         }
-        // FIX: Use the typed reservationOps helper to fix type mismatch.
         return await reservationOps.add(res);
     };
 
@@ -221,46 +284,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             alert(error.message);
             return { success: false, error };
         }
-        // FIX: Use the typed reservationOps helper to fix type mismatch.
         return await reservationOps.update(res);
     };
     
     const addInvoices = async (invs: Partial<Invoice>[]): Promise<MutationResult<Invoice[]>> => {
-        const invoicesToInsert = invs.map(i => {
-            const { id, ...rest } = i;
-            return rest;
-        });
+        const invoicesToInsert = invs.map(i => { const { id, ...rest } = i; return rest; });
         const { data: newInvoices, error } = await supabase.from('invoices').insert(invoicesToInsert as any).select();
-        if (error) {
-            return { success: false, error };
-        }
+        if (error) return { success: false, error };
         return { success: true, error: null, data: newInvoices };
     };
     
-    // Granular update for single fields, good for RLS policies
-    const updateBungalowStatus = async (bungalowId: string, status: BungalowStatus): Promise<MutationResult<Bungalow>> => {
-        const { data: updatedItems, error } = await supabase
-            .from('bungalows')
-            .update({ status })
-            .eq('id', bungalowId)
-            .select();
-        
-        if (error) {
-            console.error(`Error updating bungalow status:`, error);
-            return { success: false, error };
-        }
-        if (!updatedItems || updatedItems.length === 0) {
-            console.warn(`Update to bungalow status succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
-        }
-        return { success: true, error: null, data: updatedItems?.[0] as Bungalow };
-    };
 
     const value: DataContextType = useMemo(() => ({
         bungalows,
-        addBungalow: bungalowOps.add,
-        updateBungalow: bungalowOps.update,
+        addBungalow,
+        updateBungalow,
         updateBungalowStatus,
-        deleteBungalow: bungalowOps.delete,
+        deleteBungalow,
         clients,
         addClient: clientOps.add,
         updateClient: clientOps.update,
@@ -281,6 +321,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         addCommunicationLog: communicationOps.add,
         loyaltyLogs,
         addLoyaltyLog: loyaltyOps.add,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [bungalows, clients, reservations, invoices, maintenanceRequests, communicationLogs, loyaltyLogs]);
 
 
