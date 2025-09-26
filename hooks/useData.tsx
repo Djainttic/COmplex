@@ -244,8 +244,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // --- Specific Bungalow Operations with Mapping ---
     const addBungalow = async (bungalow: Partial<Bungalow>): Promise<MutationResult<Bungalow>> => {
-        const dbReadyData = mapBungalowToDb(bungalow);
-        delete dbReadyData.id; // Explicitly remove id to let DB generate it
+        const { id, ...insertData } = bungalow;
+        const dbReadyData = mapBungalowToDb(insertData);
 
         const { data: newItems, error } = await supabase.from('bungalows').insert(dbReadyData).select();
         if (error) {
@@ -288,8 +288,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
      // --- Specific Client Operations with Mapping ---
     const addClient = async (client: Partial<Client>): Promise<MutationResult<Client>> => {
-        const dbReadyData = mapClientToDb(client);
-        delete dbReadyData.id; // Explicitly remove id to let DB generate it
+        const { id, ...insertData } = client;
+        const dbReadyData = mapClientToDb(insertData);
 
         const { data: newItems, error } = await supabase.from('clients').insert(dbReadyData).select();
         if (error) {
