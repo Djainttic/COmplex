@@ -3,9 +3,10 @@ import React, { useState, useRef } from 'react';
 interface ImageUploadProps {
     value: string;
     onChange: (url: string) => void;
+    disabled?: boolean;
 }
 
-const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange }) => {
+const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, disabled = false }) => {
     const [tab, setTab] = useState<'upload' | 'url'>('upload');
     const [urlInput, setUrlInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +56,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange }) => {
     const inactiveTabStyle = "text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700";
 
     return (
-        <div className="mt-1 w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+        <div className={`mt-1 w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg ${disabled ? 'opacity-50' : ''}`}>
             <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-shrink-0 w-full sm:w-32 h-32 bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center overflow-hidden">
                     {isLoading ? (
@@ -68,14 +69,14 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange }) => {
                 </div>
                 <div className="flex-grow">
                     <div className="flex border-b border-gray-200 dark:border-gray-700">
-                        <button type="button" onClick={() => setTab('upload')} className={`${tabStyle} rounded-tl-md ${tab === 'upload' ? activeTabStyle : inactiveTabStyle}`}>Télécharger</button>
-                        <button type="button" onClick={() => setTab('url')} className={`${tabStyle} rounded-tr-md ${tab === 'url' ? activeTabStyle : inactiveTabStyle}`}>Lien URL</button>
+                        <button type="button" onClick={() => setTab('upload')} className={`${tabStyle} rounded-tl-md ${tab === 'upload' ? activeTabStyle : inactiveTabStyle}`} disabled={disabled}>Télécharger</button>
+                        <button type="button" onClick={() => setTab('url')} className={`${tabStyle} rounded-tr-md ${tab === 'url' ? activeTabStyle : inactiveTabStyle}`} disabled={disabled}>Lien URL</button>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-b-md">
                         {tab === 'upload' ? (
                             <div>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                                <button type="button" onClick={triggerFileSelect} className="w-full text-sm px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" disabled={disabled} />
+                                <button type="button" onClick={triggerFileSelect} className="w-full text-sm px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 disabled:cursor-not-allowed" disabled={disabled}>
                                     Choisir un fichier...
                                 </button>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">PNG, JPG, GIF, SVG, WEBP.</p>
@@ -87,14 +88,15 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange }) => {
                                     value={urlInput}
                                     onChange={(e) => setUrlInput(e.target.value)}
                                     placeholder="https://.../image.png"
-                                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 sm:text-sm"
+                                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 sm:text-sm disabled:cursor-not-allowed"
+                                    disabled={disabled}
                                 />
-                                <button type="button" onClick={handleUrlApply} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700">Appliquer</button>
+                                <button type="button" onClick={handleUrlApply} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50" disabled={disabled}>Appliquer</button>
                             </div>
                         )}
                     </div>
                      {value && (
-                        <button type="button" onClick={handleRemoveImage} className="mt-2 text-sm text-red-600 hover:text-red-800 dark:text-red-500 dark:hover:text-red-400">
+                        <button type="button" onClick={handleRemoveImage} className="mt-2 text-sm text-red-600 hover:text-red-800 dark:text-red-500 dark:hover:text-red-400 disabled:cursor-not-allowed" disabled={disabled}>
                             Retirer l'image
                         </button>
                     )}

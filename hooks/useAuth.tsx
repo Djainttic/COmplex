@@ -11,6 +11,13 @@ const DEFAULT_SETTINGS: Settings = {
         complexName: 'SYPHAX, village touristique',
         logoUrl: 'https://i.ibb.co/2d9y22T/syphax-logo.png',
         bungalowCount: 6,
+        loginImageUrl: 'https://i.ibb.co/3W81zgx/syphax-bg.jpg',
+        galleryImageUrls: [
+            'https://i.ibb.co/3W81zgx/syphax-bg.jpg',
+            'https://i.ibb.co/0t0d1Sj/bungalow-1.jpg',
+            'https://i.ibb.co/K5y4D1z/bungalow-2.jpg',
+            'https://i.ibb.co/yBNgC0P/bungalow-3.jpg',
+        ],
     },
     financial: {
         currency: Currency.DZD,
@@ -39,7 +46,7 @@ const DEFAULT_SETTINGS: Settings = {
     roles: [
         { roleName: UserRole.SuperAdmin, permissions: {} }, // SuperAdmin permissions are hardcoded to all
         { roleName: UserRole.Admin, permissions: { 'bungalows:read': true, 'bungalows:create': true, 'bungalows:update': true, 'bungalows:delete': true, 'bungalows:update_status': true, 'reservations:read': true, 'reservations:write': true, 'clients:read': true, 'clients:write': true, 'billing:read': true, 'billing:write': true, 'loyalty:read': true, 'loyalty:write': true, 'communication:read': true, 'communication:write': true, 'maintenance:read': true, 'maintenance:write': true, 'reports:read': true, 'reports:write': true, 'users:read': true, 'users:write': true, 'settings:read': true, 'settings:write': true } },
-        { roleName: UserRole.Manager, permissions: { 'bungalows:read': true, 'bungalows:update_status': true, 'reservations:read': true, 'reservations:write': true, 'clients:read': true, 'clients:write': true, 'billing:read': true, 'maintenance:read': true, 'maintenance:write': true, 'reports:read': true } },
+        { roleName: UserRole.Manager, permissions: { 'bungalows:read': true, 'bungalows:update': true, 'bungalows:update_status': true, 'reservations:read': true, 'reservations:write': true, 'clients:read': true, 'clients:write': true, 'billing:read': true, 'maintenance:read': true, 'maintenance:write': true, 'reports:read': true } },
         { roleName: UserRole.Employee, permissions: { 'bungalows:read': true, 'bungalows:update_status': true, 'reservations:read': true, 'maintenance:read': true } },
     ],
     moduleStatus: { 
@@ -56,7 +63,7 @@ interface AuthContextType {
     login: (email: string, pass: string) => Promise<{ success: boolean; error: string | null }>;
     logout: () => void;
     updateUser: (user: User) => Promise<void>;
-    addUser: (userData: Partial<User>, temporaryPassword: string) => Promise<User | null>;
+    addUser: (userData: Partial<User>, password: string) => Promise<User | null>;
     deleteUser: (userId: string) => Promise<void>;
     hasPermission: (permission: Permission | Permission[]) => boolean;
     settings: Settings;
@@ -269,7 +276,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
     
-    const addUser = async (userData: Partial<User>, temporaryPassword: string): Promise<User | null> => {
+    const addUser = async (userData: Partial<User>, password: string): Promise<User | null> => {
         if (!userData.email || !userData.name) {
             console.error("Email and name are required to create a user.");
             return null;
@@ -277,7 +284,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: userData.email,
-            password: temporaryPassword,
+            password: password,
         });
 
         if (authError || !authData.user) {

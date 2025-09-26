@@ -42,6 +42,8 @@ export interface GeneralSettings {
     complexName: string;
     logoUrl: string;
     bungalowCount: number;
+    loginImageUrl: string;
+    galleryImageUrls: string[];
 }
 
 export enum Currency {

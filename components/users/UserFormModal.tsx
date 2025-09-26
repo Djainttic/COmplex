@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 interface UserFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (user: User) => void;
+    onSave: (user: Partial<User>, password?: string) => void;
     user: User | null; // null for new user, User object for editing
 }
 
@@ -19,7 +19,7 @@ const ROLE_HIERARCHY: UserRole[] = [
 ];
 
 const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, user }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, settings } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -27,6 +27,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         role: UserRole.Employee,
         status: UserStatus.Active,
     });
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
 
     const isEditingSelf = useMemo(() => currentUser?.id === user?.id, [currentUser, user]);
 
@@ -55,6 +57,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                 role: availableRoles[0] || UserRole.Employee,
                 status: UserStatus.Active,
             });
+            setPassword('');
+            setConfirmPassword('');
         }
     }, [user, isOpen, availableRoles]);
 
@@ -65,16 +69,24 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const userToSave: User = {
-            ...user, // includes id if editing
+        const userToSave: Partial<User> = {
+            ...user,
             ...formData,
-            id: user?.id || '', // id will be set in parent for new users
-            avatarUrl: user?.avatarUrl || '', // avatar will be set in parent for new users
-            lastLogin: user?.lastLogin || new Date().toISOString(),
-            isOnline: user?.isOnline || false,
-            permissions: user?.permissions || [], // Ensure permissions array exists
         };
-        onSave(userToSave);
+
+        if (!user) { // New user
+            if (!password || password !== confirmPassword) {
+                alert("Les mots de passe ne correspondent pas ou sont vides.");
+                return;
+            }
+            if (password.length < settings.security.passwordPolicy.minLength) {
+                alert(`Le mot de passe doit contenir au moins ${settings.security.passwordPolicy.minLength} caractères.`);
+                return;
+            }
+            onSave(userToSave, password);
+        } else { // Editing user
+            onSave(userToSave);
+        }
     };
 
     return (
@@ -151,6 +163,35 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                          {(Object.values(UserStatus) as string[]).map(status => <option key={status} value={status}>{status}</option>)}
                     </select>
                 </div>
+
+                {!user && (
+                    <>
+                        <div className="border-t dark:border-gray-600 pt-4">
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mot de passe</label>
+                            <input
+                                type="password"
+                                name="password"
+                                id="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 sm:text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmer le mot de passe</label>
+                            <input
+                                type="password"
+                                name="confirmPassword"
+                                id="confirmPassword"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 sm:text-sm"
+                            />
+                        </div>
+                    </>
+                )}
             </form>
         </Modal>
     );

@@ -6,18 +6,15 @@ import UserTable from '../users/UserTable';
 import UserFormModal from '../users/UserFormModal';
 import Button from '../ui/Button';
 import ConfirmationModal from '../ui/ConfirmationModal';
-import UserCreationSuccessModal from '../users/UserCreationSuccessModal';
 import { getVisibleUsers } from '../../constants';
 
 const UsersPage: React.FC = () => {
     const { currentUser, allUsers, addUser, updateUser, deleteUser, hasPermission } = useAuth();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
-    const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
 
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
-    const [newUserCredentials, setNewUserCredentials] = useState({ email: '', temporaryPassword: '' });
     
     const canWrite = hasPermission('users:write');
 
@@ -48,20 +45,19 @@ const UsersPage: React.FC = () => {
         setConfirmModalOpen(false);
         setUserToDelete(null);
     };
-    
-    const generateTempPassword = () => `pass_${Math.random().toString(36).substring(2, 10)}`;
 
-    const handleSaveUser = async (userToSave: Partial<User>) => {
+    const handleSaveUser = async (userToSave: Partial<User>, password?: string) => {
         if (userToSave.id) { // Editing existing user
             await updateUser(userToSave as User);
-        } else { // Adding new user
-            const temporaryPassword = generateTempPassword();
-            const newUser = await addUser(userToSave, temporaryPassword);
-
+            alert("Utilisateur mis à jour avec succès !");
+        } else if (password) { // Adding new user
+            const newUser = await addUser(userToSave, password);
             if (newUser) {
-                setNewUserCredentials({ email: newUser.email, temporaryPassword });
-                setSuccessModalOpen(true);
+                alert(`L'utilisateur ${newUser.name} a été créé avec succès.`);
             }
+        } else {
+            console.error("Le mot de passe est manquant pour la création d'un nouvel utilisateur.");
+            alert("Erreur : Un mot de passe est requis pour créer un nouvel utilisateur.");
         }
         setFormModalOpen(false);
         setSelectedUser(null);
@@ -107,14 +103,6 @@ const UsersPage: React.FC = () => {
                     message={`Êtes-vous sûr de vouloir supprimer l'utilisateur ${userToDelete.name} ? Cette action est irréversible.`}
                     confirmText="Supprimer"
                     variant="danger"
-                />
-            )}
-            
-            {isSuccessModalOpen && (
-                <UserCreationSuccessModal
-                    isOpen={isSuccessModalOpen}
-                    onClose={() => setSuccessModalOpen(false)}
-                    credentials={newUserCredentials}
                 />
             )}
         </div>

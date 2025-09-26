@@ -31,7 +31,7 @@ const LoginPage: React.FC = () => {
     return (
         <div 
             className="min-h-screen bg-cover bg-center flex items-center justify-center p-4" 
-            style={{ backgroundImage: `url('https://i.ibb.co/3W81zgx/syphax-bg.jpg')` }}
+            style={{ backgroundImage: `url('${settings.general.loginImageUrl || 'https://i.ibb.co/3W81zgx/syphax-bg.jpg'}')` }}
         >
             <div className="w-full max-w-md p-8 space-y-6 bg-white/80 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl shadow-2xl">
                 <div className="text-center">
