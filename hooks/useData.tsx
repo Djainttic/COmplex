@@ -1,39 +1,41 @@
 // hooks/useData.tsx
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Bungalow, Client, Reservation, Invoice, MaintenanceRequest, CommunicationLog, LoyaltyLog, ReservationStatus } from '../types';
 
+type MutationResult<T> = { success: boolean; error: any | null; data?: T | T[] | null };
+
 interface DataContextType {
     bungalows: Bungalow[];
-    updateBungalow: (bungalow: Partial<Bungalow>) => Promise<any>;
-    addBungalow: (bungalow: Partial<Bungalow>) => Promise<any>;
-    deleteBungalow: (bungalowId: string) => Promise<any>;
+    updateBungalow: (bungalow: Partial<Bungalow>) => Promise<MutationResult<Bungalow>>;
+    addBungalow: (bungalow: Partial<Bungalow>) => Promise<MutationResult<Bungalow>>;
+    deleteBungalow: (bungalowId: string) => Promise<MutationResult<null>>;
     
     clients: Client[];
-    updateClient: (client: Partial<Client>) => Promise<any>;
-    addClient: (client: Partial<Client>) => Promise<any>;
-    deleteClient: (clientId: string) => Promise<any>;
+    updateClient: (client: Partial<Client>) => Promise<MutationResult<Client>>;
+    addClient: (client: Partial<Client>) => Promise<MutationResult<Client>>;
+    deleteClient: (clientId: string) => Promise<MutationResult<null>>;
 
     reservations: Reservation[];
-    updateReservation: (res: Partial<Reservation>) => Promise<{success: boolean}>;
-    addReservation: (res: Partial<Reservation>) => Promise<{success: boolean}>;
+    updateReservation: (res: Partial<Reservation>) => Promise<MutationResult<Reservation>>;
+    addReservation: (res: Partial<Reservation>) => Promise<MutationResult<Reservation>>;
 
     invoices: Invoice[];
-    updateInvoice: (inv: Partial<Invoice>) => Promise<any>;
-    addInvoice: (inv: Partial<Invoice>) => Promise<any>;
-    addInvoices: (invs: Partial<Invoice>[]) => Promise<any>;
-    deleteInvoice: (invoiceId: string) => Promise<any>;
+    updateInvoice: (inv: Partial<Invoice>) => Promise<MutationResult<Invoice>>;
+    addInvoice: (inv: Partial<Invoice>) => Promise<MutationResult<Invoice>>;
+    addInvoices: (invs: Partial<Invoice>[]) => Promise<MutationResult<Invoice[]>>;
+    deleteInvoice: (invoiceId: string) => Promise<MutationResult<null>>;
     
     maintenanceRequests: MaintenanceRequest[];
-    updateMaintenanceRequest: (req: Partial<MaintenanceRequest>) => Promise<any>;
-    addMaintenanceRequest: (req: Partial<MaintenanceRequest>) => Promise<any>;
-    deleteMaintenanceRequest: (reqId: string) => Promise<any>;
+    updateMaintenanceRequest: (req: Partial<MaintenanceRequest>) => Promise<MutationResult<MaintenanceRequest>>;
+    addMaintenanceRequest: (req: Partial<MaintenanceRequest>) => Promise<MutationResult<MaintenanceRequest>>;
+    deleteMaintenanceRequest: (reqId: string) => Promise<MutationResult<null>>;
 
     communicationLogs: CommunicationLog[];
-    addCommunicationLog: (log: Partial<CommunicationLog>) => Promise<any>;
+    addCommunicationLog: (log: Partial<CommunicationLog>) => Promise<MutationResult<CommunicationLog>>;
     
     loyaltyLogs: LoyaltyLog[];
-    addLoyaltyLog: (log: Partial<LoyaltyLog>) => Promise<any>;
+    addLoyaltyLog: (log: Partial<LoyaltyLog>) => Promise<MutationResult<LoyaltyLog>>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -86,7 +88,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setLoyaltyLogs((loyaltyData as any[]) || []);
             } catch (error) {
                 console.error("Failed to load initial application data:", error);
-                // Optionally set an error state here to show a banner to the user
             }
         };
 
@@ -109,32 +110,51 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return !conflictingReservation;
     };
 
-    // Generic CRUD Operations with manual state update
     const createCrudOperations = <T extends {id: string}>(
         table: string, 
         setter: React.Dispatch<React.SetStateAction<T[]>>
     ) => ({
-        add: async (data: Partial<T>) => {
-            const { id, ...insertData } = data; // Destructure to remove client-side id
-            const { data: newData, error } = await supabase.from(table).insert(insertData as any).select().single();
-            if (!error && newData) {
-                setter(prev => [...prev, newData]);
+        add: async (data: Partial<T>): Promise<MutationResult<T>> => {
+            const { id, ...insertData } = data;
+            const { data: newItems, error } = await supabase.from(table).insert(insertData as any).select();
+            
+            if (error) {
+                console.error(`Error adding to ${table}:`, error);
+                return { success: false, error };
             }
-            return { data: newData, error };
-        },
-        update: async (data: Partial<T>) => {
-            const { data: updatedData, error } = await supabase.from(table).update(data as any).eq('id', data.id).select().single();
-             if (!error && updatedData) {
-                setter(prev => prev.map(item => item.id === updatedData.id ? updatedData : item));
+            if (newItems && newItems.length > 0) {
+                const newItem = newItems[0] as T;
+                setter(prev => [...prev, newItem]);
+                return { success: true, error: null, data: newItem };
             }
-            return { data: updatedData, error };
+            const silentError = { message: 'Insert succeeded but no data was returned. Check RLS policies.' };
+            console.error(silentError.message);
+            return { success: false, error: silentError };
         },
-        delete: async (id: string) => {
+        update: async (data: Partial<T>): Promise<MutationResult<T>> => {
+            const { data: updatedItems, error } = await supabase.from(table).update(data as any).eq('id', data.id).select();
+
+             if (error) {
+                console.error(`Error updating ${table}:`, error);
+                return { success: false, error };
+            }
+            if (updatedItems && updatedItems.length > 0) {
+                const updatedItem = updatedItems[0] as T;
+                setter(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+                return { success: true, error: null, data: updatedItem };
+            }
+            const silentError = { message: 'Update succeeded but no data was returned. Check RLS policies.' };
+            console.error(silentError.message);
+            return { success: false, error: silentError };
+        },
+        delete: async (id: string): Promise<MutationResult<null>> => {
             const { error } = await supabase.from(table).delete().eq('id', id);
              if (!error) {
                 setter(prev => prev.filter(item => item.id !== id));
+                return { success: true, error: null };
             }
-            return { error };
+            console.error(`Error deleting from ${table}:`, error);
+            return { success: false, error };
         },
     });
 
@@ -146,34 +166,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const loyaltyOps = createCrudOperations('loyalty_logs', setLoyaltyLogs);
 
     // Custom reservation logic with conflict check
-    const addReservation = async (res: Partial<Reservation>) => {
+    const addReservation = async (res: Partial<Reservation>): Promise<MutationResult<Reservation>> => {
         if (!isBungalowAvailable(res.bungalowId!, res.startDate!, res.endDate!)) {
-            alert("Erreur : Ce bungalow est déjà réservé pour ces dates.");
-            return { success: false };
+            const error = { message: "Erreur : Ce bungalow est déjà réservé pour ces dates."};
+            alert(error.message);
+            return { success: false, error };
         }
-        const { id, ...insertData } = res;
-        const { data: newReservation, error } = await supabase.from('reservations').insert(insertData as any).select().single();
-        if (!error && newReservation) {
-            setReservations(prev => [...prev, newReservation]);
-            return { success: true };
-        }
-        return { success: false };
+        return await createCrudOperations('reservations', setReservations).add(res);
     };
 
-    const updateReservation = async (res: Partial<Reservation>) => {
+    const updateReservation = async (res: Partial<Reservation>): Promise<MutationResult<Reservation>> => {
          if (!isBungalowAvailable(res.bungalowId!, res.startDate!, res.endDate!, res.id)) {
-            alert("Erreur : Ce bungalow est déjà réservé pour ces dates.");
-            return { success: false };
+            const error = { message: "Erreur : Ce bungalow est déjà réservé pour ces dates."};
+            alert(error.message);
+            return { success: false, error };
         }
-        const { data: updatedReservation, error } = await supabase.from('reservations').update(res as any).eq('id', res.id).select().single();
-        if (!error && updatedReservation) {
-            setReservations(prev => prev.map(item => item.id === updatedReservation.id ? updatedReservation : item));
-            return { success: true };
-        }
-        return { success: false };
+        return await createCrudOperations('reservations', setReservations).update(res);
     };
     
-    const addInvoices = async (invs: Partial<Invoice>[]) => {
+    const addInvoices = async (invs: Partial<Invoice>[]): Promise<MutationResult<Invoice[]>> => {
         const invoicesToInsert = invs.map(i => {
             const { id, ...rest } = i;
             return rest;
@@ -181,11 +192,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { data: newInvoices, error } = await supabase.from('invoices').insert(invoicesToInsert as any).select();
         if (!error && newInvoices) {
             setInvoices(prev => [...prev, ...newInvoices]);
+            return { success: true, error: null, data: newInvoices };
         }
-        return { data: newInvoices, error };
+        return { success: false, error };
     };
 
-    const value: DataContextType = {
+    const value: DataContextType = useMemo(() => ({
         bungalows,
         addBungalow: bungalowOps.add,
         updateBungalow: bungalowOps.update,
@@ -210,7 +222,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         addCommunicationLog: communicationOps.add,
         loyaltyLogs,
         addLoyaltyLog: loyaltyOps.add,
-    };
+    }), [bungalows, clients, reservations, invoices, maintenanceRequests, communicationLogs, loyaltyLogs]);
+
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };

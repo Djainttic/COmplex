@@ -54,18 +54,20 @@ const BillingPage: React.FC = () => {
         const invoiceToUpdate = invoices.find(inv => inv.id === invoiceId);
         if (!invoiceToUpdate) return;
         
-        // Prevent re-processing if status is already the target status
         if (invoiceToUpdate.status === status) return;
 
-        await updateInvoice({ ...invoiceToUpdate, status });
+        const result = await updateInvoice({ ...invoiceToUpdate, status });
+        
+        if (!result.success) {
+            alert(`Erreur lors de la mise à jour du statut : ${result.error?.message || 'Erreur inconnue'}`);
+            return;
+        }
 
-        // --- Loyalty Points Logic (only on payment) ---
         if (status === InvoiceStatus.Paid && settings.loyalty.enabled) {
             const reservation = reservations.find(r => r.id === invoiceToUpdate.reservationId);
             const client = clients.find(c => c.id === invoiceToUpdate.clientId);
             if (!reservation || !client) {
-                console.error("Could not find reservation or client for loyalty points attribution.");
-                alert(`Facture marquée comme payée.`);
+                alert(`Facture marquée comme payée, mais le client ou la réservation associée n'a pas pu être trouvé pour l'attribution des points.`);
                 return;
             }
             const nights = Math.ceil((new Date(reservation.endDate).getTime() - new Date(reservation.startDate).getTime()) / (1000 * 3600 * 24));
@@ -148,22 +150,31 @@ const BillingPage: React.FC = () => {
         });
         
         if (newInvoices.length > 0) {
-            await addInvoices(newInvoices);
-            alert(`${newInvoices.length} facture(s) générée(s) avec succès.`);
+            const result = await addInvoices(newInvoices);
+            if(result.success) {
+                alert(`${newInvoices.length} facture(s) générée(s) avec succès.`);
+            } else {
+                alert(`Erreur lors de la génération des factures: ${result.error?.message || 'Erreur inconnue'}`);
+            }
         }
         setSelectReservationsModalOpen(false);
     };
 
      const handleSaveInvoice = async (invoiceToSave: Invoice) => {
+        let result;
         if (invoiceToSave.id) {
-            await updateInvoice(invoiceToSave);
-            alert("Facture modifiée avec succès.");
+            result = await updateInvoice(invoiceToSave);
         } else {
-            await addInvoice(invoiceToSave);
-            alert("Facture créée avec succès.");
+            result = await addInvoice(invoiceToSave);
         }
-        setFormModalOpen(false);
-        setEditingInvoice(null);
+
+        if (result.success) {
+            alert(invoiceToSave.id ? "Facture modifiée avec succès." : "Facture créée avec succès.");
+            setFormModalOpen(false);
+            setEditingInvoice(null);
+        } else {
+            alert(`Erreur lors de la sauvegarde de la facture : ${result.error?.message || 'Erreur inconnue'}`);
+        }
     };
     
     const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);

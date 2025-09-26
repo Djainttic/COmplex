@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 interface ReservationFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (reservation: Reservation) => Promise<boolean>;
+    onSave: (reservation: Reservation) => void;
     reservation: Partial<Reservation> | null;
     bungalows: Bungalow[];
     clients: Client[];
@@ -173,16 +173,12 @@ const ReservationFormModal: React.FC<ReservationFormModalProps> = ({
         }
 
         setIsSaving(true);
-        const success = await onSave({
+        await onSave({
             ...formData,
             startDate: new Date(formData.startDate).toISOString(),
             endDate: new Date(formData.endDate).toISOString(),
         } as Reservation);
         setIsSaving(false);
-
-        if (success) {
-            onClose();
-        }
     };
 
     const title = reservation?.id ? "Modifier la réservation" : "Ajouter une réservation";

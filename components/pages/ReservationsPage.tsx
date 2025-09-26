@@ -33,8 +33,8 @@ const ReservationsPage: React.FC = () => {
         setFormModalOpen(true);
     };
 
-    const handleSaveReservation = async (reservationToSave: Reservation): Promise<boolean> => {
-        let result: { success: boolean };
+    const handleSaveReservation = async (reservationToSave: Reservation) => {
+        let result;
         if (reservationToSave.id) {
             // Editing existing reservation
             result = await updateReservation(reservationToSave);
@@ -46,8 +46,9 @@ const ReservationsPage: React.FC = () => {
         if (result.success) {
             setFormModalOpen(false);
             setEditingReservation(null);
+        } else {
+             alert(`Erreur lors de la sauvegarde de la réservation : ${result.error?.message || 'Erreur inconnue.'}`);
         }
-        return result.success;
     };
 
 

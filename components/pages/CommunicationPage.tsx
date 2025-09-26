@@ -27,8 +27,13 @@ const CommunicationPage: React.FC = () => {
             status: 'Envoyé', // Mock status
             sentBy: currentUser.id,
         };
-        await addCommunicationLog(newLog);
-        setModalOpen(false);
+        const result = await addCommunicationLog(newLog);
+        
+        if (result.success) {
+            setModalOpen(false);
+        } else {
+            alert(`Erreur lors de l'envoi du message : ${result.error?.message || 'Erreur inconnue'}`);
+        }
     };
 
     return (

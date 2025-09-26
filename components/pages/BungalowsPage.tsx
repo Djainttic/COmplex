@@ -30,28 +30,28 @@ const BungalowsPage: React.FC = () => {
     
     const handleDeleteBungalow = async (bungalowId: string) => {
         if (window.confirm("Êtes-vous sûr de vouloir supprimer ce bungalow ?")) {
-            await deleteBungalow(bungalowId);
+            const result = await deleteBungalow(bungalowId);
+            if (!result.success) {
+                alert(`Erreur lors de la suppression : ${result.error?.message || 'Erreur inconnue'}`);
+            }
         }
     };
 
     const handleSaveBungalow = async (bungalowDataFromModal: Bungalow) => {
+        let result;
         if (bungalowDataFromModal.id) { // Editing
-            await updateBungalow(bungalowDataFromModal);
+            result = await updateBungalow(bungalowDataFromModal);
         } else { // Adding
-            // Explicitly create the object for Supabase, omitting the empty 'id' field.
-            // This ensures Supabase can generate a new ID without conflicts.
             const { id, ...newBungalowData } = bungalowDataFromModal;
-            const result = await addBungalow(newBungalowData);
-            if (result.error) {
-                // If there's an error, show it to the user.
-                console.error("Failed to add bungalow:", result.error);
-                alert(`Erreur lors de l'ajout du bungalow : ${result.error.message}`);
-                // Don't close the modal on error
-                return; 
-            }
+            result = await addBungalow(newBungalowData);
         }
-        setModalOpen(false);
-        setSelectedBungalow(null);
+
+        if (result.success) {
+            setModalOpen(false);
+            setSelectedBungalow(null);
+        } else {
+            alert(`Erreur lors de la sauvegarde du bungalow : ${result.error?.message || 'Erreur inconnue. Vérifiez les permissions RLS.'}`);
+        }
     };
     
     // For quick status updates from the card
@@ -77,7 +77,6 @@ const BungalowsPage: React.FC = () => {
                         Consultez, ajoutez et gérez vos bungalows.
                     </p>
                 </div>
-                {/* FIX: Corrected permission string from 'bungalow:create' to 'bungalows:create' to match the Permission type. */}
                 {hasPermission('bungalows:create') && (
                     <Button onClick={handleAddBungalow}>
                         Ajouter un bungalow

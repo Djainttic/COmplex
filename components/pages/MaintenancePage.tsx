@@ -35,22 +35,31 @@ const MaintenancePage: React.FC = () => {
 
     const handleDeleteRequest = async (requestId: string) => {
         if (window.confirm("Êtes-vous sûr de vouloir supprimer cette demande de maintenance ?")) {
-            await deleteMaintenanceRequest(requestId);
+            const result = await deleteMaintenanceRequest(requestId);
+            if (!result.success) {
+                alert(`Erreur lors de la suppression : ${result.error?.message || 'Erreur inconnue'}`);
+            }
         }
     };
 
     const handleSaveRequest = async (requestToSave: MaintenanceRequest) => {
+        let result;
         if (requestToSave.id) { // Editing
-            await updateMaintenanceRequest(requestToSave);
+            result = await updateMaintenanceRequest(requestToSave);
         } else { // Adding
             const newRequest: Partial<MaintenanceRequest> = {
                 ...requestToSave,
                 createdDate: new Date().toISOString(),
             };
-            await addMaintenanceRequest(newRequest);
+            result = await addMaintenanceRequest(newRequest);
         }
-        setModalOpen(false);
-        setSelectedRequest(null);
+        
+        if (result.success) {
+            setModalOpen(false);
+            setSelectedRequest(null);
+        } else {
+             alert(`Erreur lors de la sauvegarde : ${result.error?.message || 'Erreur inconnue'}`);
+        }
     };
 
     return (

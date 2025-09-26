@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User, Settings, UserRole, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType, UserStatus } from '../types';
@@ -56,15 +54,16 @@ const DEFAULT_SETTINGS: Settings = {
     license: { key: 'SYPHAX-PRO-2024-DEMO-XXXX', status: 'Active', expiresOn: '2025-12-31T23:59:59Z' },
 };
 
+type MutationResult<T> = { success: boolean; error: any | null; data?: T | null };
 
 interface AuthContextType {
     currentUser: User | null;
     allUsers: User[];
     login: (email: string, pass: string) => Promise<{ success: boolean; error: string | null }>;
     logout: () => void;
-    updateUser: (user: User) => Promise<void>;
-    addUser: (userData: Partial<User>, password: string) => Promise<User | null>;
-    deleteUser: (userId: string) => Promise<void>;
+    updateUser: (user: User) => Promise<MutationResult<User>>;
+    addUser: (userData: Partial<User>, password: string) => Promise<MutationResult<User>>;
+    deleteUser: (userId: string) => Promise<MutationResult<null>>;
     hasPermission: (permission: Permission | Permission[]) => boolean;
     settings: Settings;
     updateSettings: (newSettings: Settings) => Promise<void>;
@@ -256,7 +255,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: true, error: null };
     };
 
-    const updateUser = async (user: User) => {
+    const updateUser = async (user: User): Promise<MutationResult<User>> => {
         const profileData = {
             name: user.name,
             phone: user.phone,
@@ -265,29 +264,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             avatar_url: user.avatarUrl,
         };
 
-        const { data: updatedProfile, error } = await supabase
+        const { data: updatedProfiles, error } = await supabase
             .from('profiles')
             .update(profileData)
             .eq('id', user.id)
-            .select()
-            .single();
+            .select();
         
-        if (error) {
+        if (error || !updatedProfiles || updatedProfiles.length === 0) {
             console.error("Error updating user profile:", error);
-            alert("Erreur lors de la mise à jour du profil.");
-        } else if (updatedProfile) {
-            const updatedUser = mapProfileToUser(updatedProfile);
-            setAllUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-            if (currentUser?.id === updatedUser.id) {
-                setCurrentUser(updatedUser);
-            }
+            return { success: false, error: error || 'Profil non trouvé après la mise à jour.' };
         }
+        
+        const updatedUser = mapProfileToUser(updatedProfiles[0]);
+        // The realtime subscription should handle this, but manual update ensures immediate UI feedback
+        setAllUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+        if (currentUser?.id === updatedUser.id) {
+            setCurrentUser(updatedUser);
+        }
+        return { success: true, error: null, data: updatedUser };
     };
     
-    const addUser = async (userData: Partial<User>, password: string): Promise<User | null> => {
+    const addUser = async (userData: Partial<User>, password: string): Promise<MutationResult<User>> => {
         if (!userData.email || !userData.name) {
-            console.error("Email and name are required to create a user.");
-            return null;
+            const error = { message: "Email and name are required." };
+            console.error(error.message);
+            return { success: false, error };
         }
         
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -297,8 +298,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (authError || !authData.user) {
             console.error("Error creating auth user:", authError);
-            alert(`Erreur lors de la création de l'utilisateur : ${authError?.message}`);
-            return null;
+            return { success: false, error: authError };
         }
 
         const profileData = {
@@ -311,24 +311,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(userData.name)}`,
         };
 
-        const { data: newProfile, error: profileError } = await supabase
+        const { data: newProfiles, error: profileError } = await supabase
             .from('profiles')
             .insert(profileData)
-            .select()
-            .single();
+            .select();
         
-        if (profileError) {
+        if (profileError || !newProfiles || newProfiles.length === 0) {
             console.error("Error creating user profile:", profileError);
-            alert(`Erreur lors de la création du profil utilisateur.`);
-            return null;
+            return { success: false, error: profileError };
         }
         
-        const newUser = mapProfileToUser(newProfile);
+        const newUser = mapProfileToUser(newProfiles[0]);
+        // The realtime subscription should handle this, but manual update ensures immediate UI feedback
         setAllUsers(prev => [...prev, newUser]);
-        return newUser;
+        return { success: true, error: null, data: newUser };
     };
 
-    const deleteUser = async (userId: string) => {
+    const deleteUser = async (userId: string): Promise<MutationResult<null>> => {
         console.warn(`Deleting profile for user ${userId}. The auth user will remain unless a server-side function is configured.`);
         
         const { error } = await supabase
@@ -338,10 +337,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (error) {
             console.error("Error deleting user profile:", error);
-            alert("Erreur lors de la suppression du profil.");
-        } else {
-            setAllUsers(prev => prev.filter(u => u.id !== userId));
+            return { success: false, error };
         }
+
+        // The realtime subscription should handle this, but manual update ensures immediate UI feedback
+        setAllUsers(prev => prev.filter(u => u.id !== userId));
+        return { success: true, error: null };
     };
 
     const updateSettings = async (newSettings: Settings) => {

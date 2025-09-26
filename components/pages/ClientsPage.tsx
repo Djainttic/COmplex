@@ -26,23 +26,32 @@ const ClientsPage: React.FC = () => {
 
     const handleDeleteClient = async (clientId: string) => {
         if (window.confirm("Êtes-vous sûr de vouloir supprimer ce client ? Toutes les réservations et factures associées pourraient être affectées.")) {
-            await deleteClient(clientId);
+            const result = await deleteClient(clientId);
+            if (!result.success) {
+                alert(`Erreur lors de la suppression du client : ${result.error?.message || 'Erreur inconnue'}`);
+            }
         }
     };
 
     const handleSaveClient = async (clientToSave: Client) => {
+        let result;
         if (clientToSave.id) { // Editing
-            await updateClient(clientToSave);
+            result = await updateClient(clientToSave);
         } else { // Adding
             const newClient: Partial<Client> = {
                 ...clientToSave,
                 registrationDate: new Date().toISOString(),
                 loyaltyPoints: 0,
             };
-            await addClient(newClient);
+            result = await addClient(newClient);
         }
-        setModalOpen(false);
-        setSelectedClient(null);
+        
+        if (result.success) {
+            setModalOpen(false);
+            setSelectedClient(null);
+        } else {
+            alert(`Erreur lors de la sauvegarde du client : ${result.error?.message || 'Erreur inconnue'}`);
+        }
     };
 
     return (

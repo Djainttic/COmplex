@@ -32,18 +32,21 @@ const LoyaltyPage: React.FC = () => {
             ...client,
             loyaltyPoints: client.loyaltyPoints + points
         };
-        await updateClient(updatedClient);
+        const updateResult = await updateClient(updatedClient);
 
-        await addLoyaltyLog({
-            clientId,
-            type: LoyaltyLogType.ManualAdjustment,
-            pointsChange: points,
-            reason,
-            timestamp: new Date().toISOString(),
-            adminUserId: currentUser.id
-        });
-        
-        setModalOpen(false);
+        if (updateResult.success) {
+            await addLoyaltyLog({
+                clientId,
+                type: LoyaltyLogType.ManualAdjustment,
+                pointsChange: points,
+                reason,
+                timestamp: new Date().toISOString(),
+                adminUserId: currentUser.id
+            });
+            setModalOpen(false);
+        } else {
+            alert(`Erreur lors de la mise à jour des points : ${updateResult.error?.message || 'Erreur inconnue'}`);
+        }
     };
 
     const renderTabContent = () => {

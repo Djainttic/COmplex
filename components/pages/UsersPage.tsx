@@ -19,7 +19,6 @@ const UsersPage: React.FC = () => {
     const canWrite = hasPermission('users:write');
 
     const visibleUsers = useMemo(() => {
-        // FIX: Replaced inline filtering logic with the centralized getVisibleUsers helper function.
         return getVisibleUsers(currentUser, allUsers);
     }, [currentUser, allUsers]);
 
@@ -40,27 +39,36 @@ const UsersPage: React.FC = () => {
 
     const confirmDelete = async () => {
         if (userToDelete) {
-            await deleteUser(userToDelete.id);
+            const result = await deleteUser(userToDelete.id);
+            if (result.success) {
+                alert(`L'utilisateur ${userToDelete.name} a été supprimé.`);
+            } else {
+                alert(`Erreur lors de la suppression : ${result.error?.message || 'Erreur inconnue'}`);
+            }
         }
         setConfirmModalOpen(false);
         setUserToDelete(null);
     };
 
     const handleSaveUser = async (userToSave: Partial<User>, password?: string) => {
+        let result;
         if (userToSave.id) { // Editing existing user
-            await updateUser(userToSave as User);
-            alert("Utilisateur mis à jour avec succès !");
+            result = await updateUser(userToSave as User);
         } else if (password) { // Adding new user
-            const newUser = await addUser(userToSave, password);
-            if (newUser) {
-                alert(`L'utilisateur ${newUser.name} a été créé avec succès.`);
-            }
+            result = await addUser(userToSave, password);
         } else {
             console.error("Le mot de passe est manquant pour la création d'un nouvel utilisateur.");
             alert("Erreur : Un mot de passe est requis pour créer un nouvel utilisateur.");
+            return;
         }
-        setFormModalOpen(false);
-        setSelectedUser(null);
+
+        if (result.success) {
+            alert(userToSave.id ? "Utilisateur mis à jour avec succès !" : `L'utilisateur ${result.data?.name} a été créé avec succès.`);
+            setFormModalOpen(false);
+            setSelectedUser(null);
+        } else {
+            alert(`Erreur lors de la sauvegarde : ${result.error?.message || 'Une erreur inconnue est survenue.'}`);
+        }
     };
 
     return (
