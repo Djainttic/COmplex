@@ -33,22 +33,21 @@ const MaintenancePage: React.FC = () => {
         setModalOpen(true);
     };
 
-    const handleDeleteRequest = (requestId: string) => {
+    const handleDeleteRequest = async (requestId: string) => {
         if (window.confirm("Êtes-vous sûr de vouloir supprimer cette demande de maintenance ?")) {
-            deleteMaintenanceRequest(requestId);
+            await deleteMaintenanceRequest(requestId);
         }
     };
 
-    const handleSaveRequest = (requestToSave: MaintenanceRequest) => {
-        if (selectedRequest) { // Editing
-            updateMaintenanceRequest(requestToSave);
+    const handleSaveRequest = async (requestToSave: MaintenanceRequest) => {
+        if (requestToSave.id) { // Editing
+            await updateMaintenanceRequest(requestToSave);
         } else { // Adding
-            const newRequest: MaintenanceRequest = {
+            const newRequest: Partial<MaintenanceRequest> = {
                 ...requestToSave,
-                id: `maint-${Date.now()}`,
                 createdDate: new Date().toISOString(),
             };
-            addMaintenanceRequest(newRequest);
+            await addMaintenanceRequest(newRequest);
         }
         setModalOpen(false);
         setSelectedRequest(null);

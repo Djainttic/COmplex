@@ -24,23 +24,22 @@ const ClientsPage: React.FC = () => {
         setModalOpen(true);
     };
 
-    const handleDeleteClient = (clientId: string) => {
+    const handleDeleteClient = async (clientId: string) => {
         if (window.confirm("Êtes-vous sûr de vouloir supprimer ce client ? Toutes les réservations et factures associées pourraient être affectées.")) {
-            deleteClient(clientId);
+            await deleteClient(clientId);
         }
     };
 
-    const handleSaveClient = (clientToSave: Client) => {
-        if (selectedClient) { // Editing
-            updateClient(clientToSave);
+    const handleSaveClient = async (clientToSave: Client) => {
+        if (clientToSave.id) { // Editing
+            await updateClient(clientToSave);
         } else { // Adding
-            const newClient: Client = {
+            const newClient: Partial<Client> = {
                 ...clientToSave,
-                id: `client-${Date.now()}`,
                 registrationDate: new Date().toISOString(),
                 loyaltyPoints: 0,
             };
-            addClient(newClient);
+            await addClient(newClient);
         }
         setModalOpen(false);
         setSelectedClient(null);

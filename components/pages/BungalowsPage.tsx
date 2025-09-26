@@ -28,26 +28,25 @@ const BungalowsPage: React.FC = () => {
         setModalOpen(true);
     };
     
-    const handleDeleteBungalow = (bungalowId: string) => {
+    const handleDeleteBungalow = async (bungalowId: string) => {
         if (window.confirm("Êtes-vous sûr de vouloir supprimer ce bungalow ?")) {
-            deleteBungalow(bungalowId);
+            await deleteBungalow(bungalowId);
         }
     };
 
-    const handleSaveBungalow = (bungalowToSave: Bungalow) => {
-        if (selectedBungalow) { // Editing
-            updateBungalow(bungalowToSave);
+    const handleSaveBungalow = async (bungalowToSave: Bungalow) => {
+        if (bungalowToSave.id) { // Editing
+            await updateBungalow(bungalowToSave);
         } else { // Adding
-            const newBungalow = { ...bungalowToSave, id: `bungalow-${Date.now()}` };
-            addBungalow(newBungalow);
+            await addBungalow(bungalowToSave);
         }
         setModalOpen(false);
         setSelectedBungalow(null);
     };
     
     // For quick status updates from the card
-    const handleUpdateBungalow = (updatedBungalow: Bungalow) => {
-        updateBungalow(updatedBungalow);
+    const handleUpdateBungalow = async (updatedBungalow: Bungalow) => {
+        await updateBungalow(updatedBungalow);
     };
 
     const filteredBungalows = useMemo(() => {
@@ -68,6 +67,7 @@ const BungalowsPage: React.FC = () => {
                         Consultez, ajoutez et gérez vos bungalows.
                     </p>
                 </div>
+                {/* FIX: Corrected permission string from 'bungalow:create' to 'bungalows:create' to match the Permission type. */}
                 {hasPermission('bungalows:create') && (
                     <Button onClick={handleAddBungalow}>
                         Ajouter un bungalow

@@ -11,7 +11,6 @@ import PointAdjustmentModal from '../loyalty/PointAdjustmentModal';
 type Tab = 'dashboard' | 'history' | 'settings';
 
 const LoyaltyPage: React.FC = () => {
-    // FIX: `allUsers` is provided by `useAuth`, not `useData`.
     const { currentUser, settings, hasPermission, allUsers } = useAuth();
     const { clients, updateClient, loyaltyLogs, addLoyaltyLog } = useData();
     const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -25,7 +24,7 @@ const LoyaltyPage: React.FC = () => {
         setModalOpen(true);
     };
 
-    const handleAdjustPoints = (clientId: string, points: number, reason: string) => {
+    const handleAdjustPoints = async (clientId: string, points: number, reason: string) => {
         const client = clients.find(c => c.id === clientId);
         if (!client || !currentUser) return;
 
@@ -33,10 +32,9 @@ const LoyaltyPage: React.FC = () => {
             ...client,
             loyaltyPoints: client.loyaltyPoints + points
         };
-        updateClient(updatedClient);
+        await updateClient(updatedClient);
 
-        addLoyaltyLog({
-            id: `log-${Date.now()}`,
+        await addLoyaltyLog({
             clientId,
             type: LoyaltyLogType.ManualAdjustment,
             pointsChange: points,

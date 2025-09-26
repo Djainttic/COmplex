@@ -49,7 +49,7 @@ const BillingPage: React.FC = () => {
         setFormModalOpen(true);
     };
 
-    const handleUpdateStatus = (invoiceId: string, status: InvoiceStatus) => {
+    const handleUpdateStatus = async (invoiceId: string, status: InvoiceStatus) => {
         if (!canWrite) return;
         const invoiceToUpdate = invoices.find(inv => inv.id === invoiceId);
         if (!invoiceToUpdate) return;
@@ -57,7 +57,7 @@ const BillingPage: React.FC = () => {
         // Prevent re-processing if status is already the target status
         if (invoiceToUpdate.status === status) return;
 
-        updateInvoice({ ...invoiceToUpdate, status });
+        await updateInvoice({ ...invoiceToUpdate, status });
 
         // --- Loyalty Points Logic (only on payment) ---
         if (status === InvoiceStatus.Paid && settings.loyalty.enabled) {
@@ -78,8 +78,7 @@ const BillingPage: React.FC = () => {
             let totalPointsToAdd = 0;
             
             if (pointsForStay > 0) {
-                 addLoyaltyLog({
-                    id: `log-${Date.now()}-stay`,
+                 await addLoyaltyLog({
                     clientId: client.id,
                     type: LoyaltyLogType.Earned,
                     pointsChange: pointsForStay,
@@ -91,8 +90,7 @@ const BillingPage: React.FC = () => {
             }
             
             if (bonusPoints > 0) {
-                 addLoyaltyLog({
-                    id: `log-${Date.now()}-bonus`,
+                 await addLoyaltyLog({
                     clientId: client.id,
                     type: LoyaltyLogType.InitialBonus,
                     pointsChange: bonusPoints,
@@ -104,7 +102,7 @@ const BillingPage: React.FC = () => {
             }
 
             if (totalPointsToAdd > 0) {
-                updateClient({ ...client, loyaltyPoints: client.loyaltyPoints + totalPointsToAdd });
+                await updateClient({ ...client, loyaltyPoints: client.loyaltyPoints + totalPointsToAdd });
                 alert(`Facture marquée comme payée. ${totalPointsToAdd} points de fidélité ont été ajoutés à ${client.name}.`);
             } else {
                 alert(`Facture marquée comme payée.`);
@@ -122,9 +120,8 @@ const BillingPage: React.FC = () => {
     }, [invoices, reservations]);
 
 
-    const handleCreateInvoices = (selectedReservations: Reservation[]) => {
-        const newInvoices: Invoice[] = [];
-        let invoiceCount = invoices.length;
+    const handleCreateInvoices = async (selectedReservations: Reservation[]) => {
+        const newInvoices: Partial<Invoice>[] = [];
 
         selectedReservations.forEach(reservation => {
             const client = clients.find(c => c.id === reservation.clientId);
@@ -132,9 +129,7 @@ const BillingPage: React.FC = () => {
 
             if (client && bungalow) {
                 const nights = Math.max(1, Math.ceil((new Date(reservation.endDate).getTime() - new Date(reservation.startDate).getTime()) / (1000 * 3600 * 24)));
-                invoiceCount++;
-                const newInvoice: Invoice = {
-                    id: `INV-2024-${(invoiceCount).toString().padStart(3, '0')}`,
+                const newInvoice: Partial<Invoice> = {
                     reservationId: reservation.id,
                     clientId: reservation.clientId,
                     issueDate: new Date().toISOString(),
@@ -153,19 +148,18 @@ const BillingPage: React.FC = () => {
         });
         
         if (newInvoices.length > 0) {
-            addInvoices(newInvoices);
+            await addInvoices(newInvoices);
             alert(`${newInvoices.length} facture(s) générée(s) avec succès.`);
         }
         setSelectReservationsModalOpen(false);
     };
 
-     const handleSaveInvoice = (invoiceToSave: Invoice) => {
-        if (editingInvoice) {
-            updateInvoice(invoiceToSave);
+     const handleSaveInvoice = async (invoiceToSave: Invoice) => {
+        if (invoiceToSave.id) {
+            await updateInvoice(invoiceToSave);
             alert("Facture modifiée avec succès.");
         } else {
-            const newId = `INV-2024-${(invoices.length + 1).toString().padStart(3, '0')}`;
-            addInvoice({ ...invoiceToSave, id: newId });
+            await addInvoice(invoiceToSave);
             alert("Facture créée avec succès.");
         }
         setFormModalOpen(false);

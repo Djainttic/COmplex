@@ -34,18 +34,13 @@ const ReservationsPage: React.FC = () => {
     };
 
     const handleSaveReservation = async (reservationToSave: Reservation): Promise<boolean> => {
-        // FIX: Correctly handle the { success: boolean } return type from add/update reservation functions.
         let result: { success: boolean };
         if (reservationToSave.id) {
             // Editing existing reservation
             result = await updateReservation(reservationToSave);
         } else {
             // Adding new reservation
-            const newReservation = {
-                ...reservationToSave,
-                id: `res-${Date.now()}`
-            };
-            result = await addReservation(newReservation);
+            result = await addReservation(reservationToSave);
         }
         
         if (result.success) {
@@ -129,7 +124,6 @@ const ReservationsPage: React.FC = () => {
                     date={currentDate} 
                     reservations={reservations} 
                     onSelectReservation={handleSelectReservation} 
-                    // FIX: Pass bungalows data to the month view component.
                     bungalows={bungalows}
                 />
             ) : (

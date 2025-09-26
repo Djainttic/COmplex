@@ -18,17 +18,16 @@ const CommunicationPage: React.FC = () => {
         setModalOpen(true);
     };
 
-    const handleSaveMessage = (log: Omit<CommunicationLog, 'id' | 'sentDate' | 'sentBy'>) => {
+    const handleSaveMessage = async (log: Omit<CommunicationLog, 'id' | 'sentDate' | 'sentBy'>) => {
         if (!currentUser) return;
         
-        const newLog: CommunicationLog = {
+        const newLog: Partial<CommunicationLog> = {
             ...log,
-            id: `comm-${Date.now()}`,
             sentDate: new Date().toISOString(),
             status: 'Envoyé', // Mock status
             sentBy: currentUser.id,
         };
-        addCommunicationLog(newLog);
+        await addCommunicationLog(newLog);
         setModalOpen(false);
     };
 

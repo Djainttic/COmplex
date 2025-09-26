@@ -115,7 +115,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setter: React.Dispatch<React.SetStateAction<T[]>>
     ) => ({
         add: async (data: Partial<T>) => {
-            const { data: newData, error } = await supabase.from(table).insert(data as any).select().single();
+            const { id, ...insertData } = data; // Destructure to remove client-side id
+            const { data: newData, error } = await supabase.from(table).insert(insertData as any).select().single();
             if (!error && newData) {
                 setter(prev => [...prev, newData]);
             }
@@ -150,7 +151,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             alert("Erreur : Ce bungalow est déjà réservé pour ces dates.");
             return { success: false };
         }
-        const { data: newReservation, error } = await supabase.from('reservations').insert(res as any).select().single();
+        const { id, ...insertData } = res;
+        const { data: newReservation, error } = await supabase.from('reservations').insert(insertData as any).select().single();
         if (!error && newReservation) {
             setReservations(prev => [...prev, newReservation]);
             return { success: true };
@@ -172,14 +174,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     
     const addInvoices = async (invs: Partial<Invoice>[]) => {
-        const { data: newInvoices, error } = await supabase.from('invoices').insert(invs as any).select();
+        const invoicesToInsert = invs.map(i => {
+            const { id, ...rest } = i;
+            return rest;
+        });
+        const { data: newInvoices, error } = await supabase.from('invoices').insert(invoicesToInsert as any).select();
         if (!error && newInvoices) {
             setInvoices(prev => [...prev, ...newInvoices]);
         }
         return { data: newInvoices, error };
     };
 
-    // FIX: Correctly map generic CRUD functions to the specific function names required by the DataContextType interface.
     const value: DataContextType = {
         bungalows,
         addBungalow: bungalowOps.add,

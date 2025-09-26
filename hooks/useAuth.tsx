@@ -217,7 +217,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             supabase.removeChannel(profilesChannel);
             supabase.removeChannel(settingsChannel);
         };
-    }, [currentUser?.id]);
+    }, []);
 
     const login = async (email: string, pass: string) => {
         const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
@@ -265,14 +265,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             avatar_url: user.avatarUrl,
         };
 
-        const { error } = await supabase
+        const { data: updatedProfile, error } = await supabase
             .from('profiles')
             .update(profileData)
-            .eq('id', user.id);
+            .eq('id', user.id)
+            .select()
+            .single();
         
         if (error) {
             console.error("Error updating user profile:", error);
             alert("Erreur lors de la mise à jour du profil.");
+        } else if (updatedProfile) {
+            const updatedUser = mapProfileToUser(updatedProfile);
+            setAllUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+            if (currentUser?.id === updatedUser.id) {
+                setCurrentUser(updatedUser);
+            }
         }
     };
     
@@ -315,7 +323,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return null;
         }
         
-        return mapProfileToUser(newProfile);
+        const newUser = mapProfileToUser(newProfile);
+        setAllUsers(prev => [...prev, newUser]);
+        return newUser;
     };
 
     const deleteUser = async (userId: string) => {
@@ -329,6 +339,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (error) {
             console.error("Error deleting user profile:", error);
             alert("Erreur lors de la suppression du profil.");
+        } else {
+            setAllUsers(prev => prev.filter(u => u.id !== userId));
         }
     };
 
