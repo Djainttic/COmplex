@@ -1,22 +1,29 @@
 // components/pages/UsersPage.tsx
-import React, { useState, useMemo } from 'react';
-import { User, UserRole, UserStatus } from '../../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { User } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import UserTable from '../users/UserTable';
 import UserFormModal from '../users/UserFormModal';
 import Button from '../ui/Button';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import { getVisibleUsers } from '../../constants';
+import UserCreationSuccessModal from '../users/UserCreationSuccessModal';
 
 const UsersPage: React.FC = () => {
-    const { currentUser, allUsers, addUser, updateUser, deleteUser, hasPermission } = useAuth();
+    const { currentUser, allUsers, addUser, updateUser, deleteUser, hasPermission, fetchUsers, loadingUsers } = useAuth();
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
+    const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
+    const [newUserCredentials, setNewUserCredentials] = useState({ email: '', temporaryPassword: '' });
 
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     
     const canWrite = hasPermission('users:write');
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
 
     const visibleUsers = useMemo(() => {
         return getVisibleUsers(currentUser, allUsers);
@@ -41,7 +48,7 @@ const UsersPage: React.FC = () => {
         if (userToDelete) {
             const result = await deleteUser(userToDelete.id);
             if (result.success) {
-                alert(`L'utilisateur ${userToDelete.name} a été supprimé.`);
+                // The UI will update via realtime subscription
             } else {
                 alert(`Erreur lors de la suppression : ${result.error?.message || 'Erreur inconnue'}`);
             }
@@ -49,27 +56,37 @@ const UsersPage: React.FC = () => {
         setConfirmModalOpen(false);
         setUserToDelete(null);
     };
-
+    
     const handleSaveUser = async (userToSave: Partial<User>, password?: string) => {
         let result;
-        if (userToSave.id) { // Editing existing user
+        if (userToSave.id) {
             result = await updateUser(userToSave as User);
-        } else if (password) { // Adding new user
+        } else if (password) {
             result = await addUser(userToSave, password);
+            if (result.success && result.data?.email) {
+                setNewUserCredentials({ email: result.data.email, temporaryPassword: password });
+                setSuccessModalOpen(true);
+            }
         } else {
-            console.error("Le mot de passe est manquant pour la création d'un nouvel utilisateur.");
             alert("Erreur : Un mot de passe est requis pour créer un nouvel utilisateur.");
             return;
         }
 
         if (result.success) {
-            alert(userToSave.id ? "Utilisateur mis à jour avec succès !" : `L'utilisateur ${result.data?.name} a été créé avec succès.`);
             setFormModalOpen(false);
             setSelectedUser(null);
         } else {
             alert(`Erreur lors de la sauvegarde : ${result.error?.message || 'Une erreur inconnue est survenue.'}`);
         }
     };
+
+    if (loadingUsers && allUsers.length === 0) {
+        return (
+            <div className="w-full h-full flex items-center justify-center p-10">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div>
@@ -99,6 +116,14 @@ const UsersPage: React.FC = () => {
                     onClose={() => setFormModalOpen(false)}
                     onSave={handleSaveUser}
                     user={selectedUser}
+                />
+            )}
+            
+            {isSuccessModalOpen && (
+                <UserCreationSuccessModal
+                    isOpen={isSuccessModalOpen}
+                    onClose={() => setSuccessModalOpen(false)}
+                    credentials={newUserCredentials}
                 />
             )}
 

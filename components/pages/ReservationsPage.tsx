@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Reservation, Bungalow, Client, ReservationStatus } from '../../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Reservation, Bungalow, Client } from '../../types';
 import { formatDateDDMMYYYY } from '../../constants';
 import Button from '../ui/Button';
 import CalendarMonthView from '../reservations/CalendarMonthView';
@@ -11,17 +11,25 @@ import { useData } from '../../hooks/useData';
 
 const ReservationsPage: React.FC = () => {
     const { hasPermission } = useAuth();
-    const { reservations, addReservation, updateReservation, bungalows, clients } = useData();
+    const { 
+        reservations, addReservation, updateReservation, 
+        bungalows, clients, 
+        fetchReservations, fetchBungalows, fetchClients, isLoading 
+    } = useData();
     const [viewMode, setViewMode] = useState<'month' | 'week'>('week');
     const [currentDate, setCurrentDate] = useState(new Date());
     
-    // State for modals
     const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
     const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     
-    // State for creating/editing reservations
     const [editingReservation, setEditingReservation] = useState<Partial<Reservation> | null>(null);
+
+    useEffect(() => {
+        fetchReservations();
+        fetchBungalows();
+        fetchClients();
+    }, [fetchReservations, fetchBungalows, fetchClients]);
 
     const handleSelectReservation = (reservation: Reservation) => {
         setSelectedReservation(reservation);
@@ -36,10 +44,8 @@ const ReservationsPage: React.FC = () => {
     const handleSaveReservation = async (reservationToSave: Reservation) => {
         let result;
         if (reservationToSave.id) {
-            // Editing existing reservation
             result = await updateReservation(reservationToSave);
         } else {
-            // Adding new reservation
             result = await addReservation(reservationToSave);
         }
         
@@ -51,7 +57,6 @@ const ReservationsPage: React.FC = () => {
         }
     };
 
-
     const handleNavigate = (direction: 'prev' | 'next' | 'today') => {
         const newDate = new Date(currentDate);
         if (direction === 'today') {
@@ -60,11 +65,9 @@ const ReservationsPage: React.FC = () => {
         }
 
         if (viewMode === 'month') {
-            const monthOffset = direction === 'prev' ? -1 : 1;
-            newDate.setMonth(newDate.getMonth() + monthOffset);
-        } else { // week view
-            const dayOffset = direction === 'prev' ? -7 : 7;
-            newDate.setDate(newDate.getDate() + dayOffset);
+            newDate.setMonth(newDate.getMonth() + (direction === 'prev' ? -1 : 1));
+        } else {
+            newDate.setDate(newDate.getDate() + (direction === 'prev' ? -7 : 7));
         }
         setCurrentDate(newDate);
     };
@@ -73,18 +76,17 @@ const ReservationsPage: React.FC = () => {
         if (viewMode === 'month') {
             return currentDate.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
         }
-        
-        // Week view starts on Sunday
         const weekStart = new Date(currentDate);
         weekStart.setDate(currentDate.getDate() - currentDate.getDay());
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
-
         return `${formatDateDDMMYYYY(weekStart.toISOString())} - ${formatDateDDMMYYYY(weekEnd.toISOString())}`;
     }, [currentDate, viewMode]);
 
     const selectedBungalow = bungalows.find(b => b.id === selectedReservation?.bungalowId);
     const selectedClient = clients.find(c => c.id === selectedReservation?.clientId);
+    
+    const showLoading = (isLoading.reservations || isLoading.bungalows || isLoading.clients) && reservations.length === 0;
 
     return (
         <div>
@@ -102,7 +104,6 @@ const ReservationsPage: React.FC = () => {
                 )}
             </div>
 
-            {/* Calendar Controls */}
             <div className="flex flex-wrap items-center justify-between mb-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow gap-4">
                  <div className="flex items-center space-x-2">
                     <h2 className="text-xl font-semibold text-gray-800 dark:text-white capitalize">
@@ -120,7 +121,9 @@ const ReservationsPage: React.FC = () => {
                 </div>
             </div>
 
-            {viewMode === 'month' ? (
+            {showLoading ? (
+                <div className="text-center py-12">Chargement du calendrier...</div>
+            ) : viewMode === 'month' ? (
                  <CalendarMonthView 
                     date={currentDate} 
                     reservations={reservations} 

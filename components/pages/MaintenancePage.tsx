@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { MaintenanceRequest } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
@@ -8,18 +8,24 @@ import Button from '../ui/Button';
 import { getVisibleUsers } from '../../constants';
 
 const MaintenancePage: React.FC = () => {
-    const { currentUser, hasPermission, allUsers } = useAuth();
+    const { currentUser, hasPermission, allUsers, fetchUsers, loadingUsers } = useAuth();
     const { 
         maintenanceRequests, addMaintenanceRequest, 
         updateMaintenanceRequest, deleteMaintenanceRequest, 
-        bungalows 
+        bungalows, fetchMaintenanceRequests, fetchBungalows, isLoading: isDataLoading
     } = useData();
     const [isModalOpen, setModalOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null);
     
     const canWrite = hasPermission('maintenance:write');
-    const assignableUsers = getVisibleUsers(currentUser, allUsers);
 
+    useEffect(() => {
+        fetchMaintenanceRequests();
+        fetchBungalows();
+        fetchUsers();
+    }, [fetchMaintenanceRequests, fetchBungalows, fetchUsers]);
+    
+    const assignableUsers = getVisibleUsers(currentUser, allUsers);
     const bungalowMap = useMemo(() => new Map(bungalows.map(b => [b.id, b.name])), [bungalows]);
     const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.name])), [allUsers]);
 
@@ -44,9 +50,9 @@ const MaintenancePage: React.FC = () => {
 
     const handleSaveRequest = async (requestToSave: MaintenanceRequest) => {
         let result;
-        if (requestToSave.id) { // Editing
+        if (requestToSave.id) {
             result = await updateMaintenanceRequest(requestToSave);
-        } else { // Adding
+        } else {
             const newRequest: Partial<MaintenanceRequest> = {
                 ...requestToSave,
                 createdDate: new Date().toISOString(),
@@ -61,6 +67,8 @@ const MaintenancePage: React.FC = () => {
              alert(`Erreur lors de la sauvegarde : ${result.error?.message || 'Erreur inconnue'}`);
         }
     };
+    
+    const showLoading = (isDataLoading.maintenanceRequests || isDataLoading.bungalows || loadingUsers) && maintenanceRequests.length === 0;
 
     return (
         <div>
@@ -77,14 +85,18 @@ const MaintenancePage: React.FC = () => {
                     </Button>
                 )}
             </div>
-            
-            <MaintenanceTable 
-                requests={maintenanceRequests}
-                bungalowMap={bungalowMap}
-                userMap={userMap}
-                onEdit={handleEditRequest}
-                onDelete={handleDeleteRequest}
-            />
+
+            {showLoading ? (
+                <div className="text-center py-12">Chargement des demandes de maintenance...</div>
+            ) : (
+                <MaintenanceTable 
+                    requests={maintenanceRequests}
+                    bungalowMap={bungalowMap}
+                    userMap={userMap}
+                    onEdit={handleEditRequest}
+                    onDelete={handleDeleteRequest}
+                />
+            )}
 
             {isModalOpen && (
                 <MaintenanceFormModal

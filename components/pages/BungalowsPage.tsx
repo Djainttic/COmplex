@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Bungalow } from '../../types';
 import BungalowFilters from '../bungalows/BungalowFilters';
 import BungalowCatalogue from '../bungalows/BungalowCatalogue';
@@ -9,10 +9,14 @@ import { useData } from '../../hooks/useData';
 
 const BungalowsPage: React.FC = () => {
     const { hasPermission } = useAuth();
-    const { bungalows, addBungalow, updateBungalow, deleteBungalow } = useData();
+    const { bungalows, addBungalow, updateBungalow, deleteBungalow, fetchBungalows, isLoading } = useData();
     const [filters, setFilters] = useState({ status: '', type: '', capacity: 0 });
     const [isModalOpen, setModalOpen] = useState(false);
     const [selectedBungalow, setSelectedBungalow] = useState<Bungalow | null>(null);
+
+    useEffect(() => {
+        fetchBungalows();
+    }, [fetchBungalows]);
 
     const handleFilterChange = (newFilters: { status: string; type: string; capacity: number }) => {
         setFilters(newFilters);
@@ -39,9 +43,9 @@ const BungalowsPage: React.FC = () => {
 
     const handleSaveBungalow = async (bungalowDataFromModal: Bungalow) => {
         let result;
-        if (bungalowDataFromModal.id) { // Editing
+        if (bungalowDataFromModal.id) {
             result = await updateBungalow(bungalowDataFromModal);
-        } else { // Adding
+        } else {
             const { id, ...newBungalowData } = bungalowDataFromModal;
             result = await addBungalow(newBungalowData);
         }
@@ -54,7 +58,6 @@ const BungalowsPage: React.FC = () => {
         }
     };
     
-    // For quick status updates from the card
     const handleUpdateBungalow = async (updatedBungalow: Bungalow) => {
         await updateBungalow(updatedBungalow);
     };
@@ -67,6 +70,8 @@ const BungalowsPage: React.FC = () => {
             return statusMatch && typeMatch && capacityMatch;
         });
     }, [bungalows, filters]);
+    
+    const showLoading = isLoading.bungalows && bungalows.length === 0;
 
     return (
         <div>
@@ -85,13 +90,17 @@ const BungalowsPage: React.FC = () => {
             </div>
             
             <BungalowFilters onFilterChange={handleFilterChange} />
-
-            <BungalowCatalogue 
-                bungalows={filteredBungalows}
-                onEdit={handleEditBungalow}
-                onDelete={handleDeleteBungalow}
-                onUpdateBungalow={handleUpdateBungalow}
-            />
+            
+            {showLoading ? (
+                 <div className="text-center py-12">Chargement des bungalows...</div>
+            ) : (
+                <BungalowCatalogue 
+                    bungalows={filteredBungalows}
+                    onEdit={handleEditBungalow}
+                    onDelete={handleDeleteBungalow}
+                    onUpdateBungalow={handleUpdateBungalow}
+                />
+            )}
 
             {isModalOpen && (
                 <BungalowFormModal 

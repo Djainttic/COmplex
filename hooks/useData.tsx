@@ -1,5 +1,5 @@
 // hooks/useData.tsx
-import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Bungalow, BungalowStatus, Client, Reservation, Invoice, MaintenanceRequest, CommunicationLog, LoyaltyLog, ReservationStatus } from '../types';
 
@@ -7,90 +7,54 @@ type MutationResult<T> = { success: boolean; error: any | null; data?: T | T[] |
 
 interface DataContextType {
     bungalows: Bungalow[];
+    clients: Client[];
+    reservations: Reservation[];
+    invoices: Invoice[];
+    maintenanceRequests: MaintenanceRequest[];
+    communicationLogs: CommunicationLog[];
+    loyaltyLogs: LoyaltyLog[];
+    isLoading: { [key: string]: boolean };
+
+    fetchBungalows: () => Promise<void>;
+    fetchClients: () => Promise<void>;
+    fetchReservations: () => Promise<void>;
+    fetchInvoices: () => Promise<void>;
+    fetchMaintenanceRequests: () => Promise<void>;
+    fetchCommunicationLogs: () => Promise<void>;
+    fetchLoyaltyLogs: () => Promise<void>;
+
     updateBungalow: (bungalow: Partial<Bungalow>) => Promise<MutationResult<Bungalow>>;
     updateBungalowStatus: (bungalowId: string, status: BungalowStatus) => Promise<MutationResult<Bungalow>>;
     addBungalow: (bungalow: Partial<Bungalow>) => Promise<MutationResult<Bungalow>>;
     deleteBungalow: (bungalowId: string) => Promise<MutationResult<null>>;
     
-    clients: Client[];
     updateClient: (client: Partial<Client>) => Promise<MutationResult<Client>>;
     addClient: (client: Partial<Client>) => Promise<MutationResult<Client>>;
     deleteClient: (clientId: string) => Promise<MutationResult<null>>;
 
-    reservations: Reservation[];
     updateReservation: (res: Partial<Reservation>) => Promise<MutationResult<Reservation>>;
     addReservation: (res: Partial<Reservation>) => Promise<MutationResult<Reservation>>;
 
-    invoices: Invoice[];
     updateInvoice: (inv: Partial<Invoice>) => Promise<MutationResult<Invoice>>;
     addInvoice: (inv: Partial<Invoice>) => Promise<MutationResult<Invoice>>;
     addInvoices: (invs: Partial<Invoice>[]) => Promise<MutationResult<Invoice[]>>;
     deleteInvoice: (invoiceId: string) => Promise<MutationResult<null>>;
     
-    maintenanceRequests: MaintenanceRequest[];
     updateMaintenanceRequest: (req: Partial<MaintenanceRequest>) => Promise<MutationResult<MaintenanceRequest>>;
     addMaintenanceRequest: (req: Partial<MaintenanceRequest>) => Promise<MutationResult<MaintenanceRequest>>;
     deleteMaintenanceRequest: (reqId: string) => Promise<MutationResult<null>>;
 
-    communicationLogs: CommunicationLog[];
     addCommunicationLog: (log: Partial<CommunicationLog>) => Promise<MutationResult<CommunicationLog>>;
     
-    loyaltyLogs: LoyaltyLog[];
     addLoyaltyLog: (log: Partial<LoyaltyLog>) => Promise<MutationResult<LoyaltyLog>>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// Mapper for Bungalow data type to handle camelCase/snake_case mismatch
-const mapDbToBungalow = (dbBungalow: any): Bungalow => ({
-    id: dbBungalow.id,
-    name: dbBungalow.name,
-    type: dbBungalow.type,
-    status: dbBungalow.status,
-    capacity: dbBungalow.capacity,
-    pricePerNight: dbBungalow.price_per_night,
-    amenities: dbBungalow.amenities,
-    imageUrl: dbBungalow.image_url,
-    description: dbBungalow.description,
-});
-
-const mapBungalowToDb = (bungalow: Partial<Bungalow>): any => {
-    const dbData: any = {};
-    if (bungalow.id !== undefined) dbData.id = bungalow.id;
-    if (bungalow.name !== undefined) dbData.name = bungalow.name;
-    if (bungalow.type !== undefined) dbData.type = bungalow.type;
-    if (bungalow.status !== undefined) dbData.status = bungalow.status;
-    if (bungalow.capacity !== undefined) dbData.capacity = bungalow.capacity;
-    if (bungalow.pricePerNight !== undefined) dbData.price_per_night = bungalow.pricePerNight;
-    if (bungalow.amenities !== undefined) dbData.amenities = bungalow.amenities;
-    if (bungalow.imageUrl !== undefined) dbData.image_url = bungalow.imageUrl;
-    if (bungalow.description !== undefined) dbData.description = bungalow.description;
-    return dbData;
-};
-
-// Mapper for Client data type
-const mapDbToClient = (dbClient: any): Client => ({
-    id: dbClient.id,
-    name: dbClient.name,
-    email: dbClient.email,
-    phone: dbClient.phone,
-    address: dbClient.address,
-    registrationDate: dbClient.registration_date,
-    loyaltyPoints: dbClient.loyalty_points,
-});
-
-const mapClientToDb = (client: Partial<Client>): any => {
-    const dbData: any = {};
-    if (client.id !== undefined) dbData.id = client.id;
-    if (client.name !== undefined) dbData.name = client.name;
-    if (client.email !== undefined) dbData.email = client.email;
-    if (client.phone !== undefined) dbData.phone = client.phone;
-    if (client.address !== undefined) dbData.address = client.address;
-    if (client.registrationDate !== undefined) dbData.registration_date = client.registrationDate;
-    if (client.loyaltyPoints !== undefined) dbData.loyalty_points = client.loyaltyPoints;
-    return dbData;
-};
-
+const mapDbToBungalow = (dbBungalow: any): Bungalow => ({ id: dbBungalow.id, name: dbBungalow.name, type: dbBungalow.type, status: dbBungalow.status, capacity: dbBungalow.capacity, pricePerNight: dbBungalow.price_per_night, amenities: dbBungalow.amenities, imageUrl: dbBungalow.image_url, description: dbBungalow.description });
+const mapBungalowToDb = (bungalow: Partial<Bungalow>): any => ({ id: bungalow.id, name: bungalow.name, type: bungalow.type, status: bungalow.status, capacity: bungalow.capacity, price_per_night: bungalow.pricePerNight, amenities: bungalow.amenities, image_url: bungalow.imageUrl, description: bungalow.description });
+const mapDbToClient = (dbClient: any): Client => ({ id: dbClient.id, name: dbClient.name, email: dbClient.email, phone: dbClient.phone, address: dbClient.address, registrationDate: dbClient.registration_date, loyaltyPoints: dbClient.loyalty_points });
+const mapClientToDb = (client: Partial<Client>): any => ({ id: client.id, name: client.name, email: client.email, phone: client.phone, address: client.address, registration_date: client.registrationDate, loyalty_points: client.loyaltyPoints });
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     
@@ -101,68 +65,45 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>([]);
     const [communicationLogs, setCommunicationLogs] = useState<CommunicationLog[]>([]);
     const [loyaltyLogs, setLoyaltyLogs] = useState<LoyaltyLog[]>([]);
+    const [isLoading, setIsLoading] = useState<{ [key: string]: boolean }>({});
     
+    const fetchData = useCallback(async <T,>(
+        dataType: string, 
+        setter: React.Dispatch<React.SetStateAction<T[]>>, 
+        query: () => Promise<{ data: any[] | null, error: any }>,
+        state: T[],
+        mapper?: (item: any) => T
+    ) => {
+        if (state.length > 0 || isLoading[dataType]) return;
+
+        setIsLoading(prev => ({ ...prev, [dataType]: true }));
+        try {
+            const { data, error } = await query();
+            if (error) throw error;
+            const mappedData = mapper ? (data as any[]).map(mapper) : (data as T[]);
+            setter(mappedData || []);
+        } catch (error) {
+            console.error(`Failed to load ${dataType}:`, error);
+        } finally {
+            setIsLoading(prev => ({ ...prev, [dataType]: false }));
+        }
+    }, [isLoading]);
+
+    const fetchBungalows = useCallback(() => fetchData('bungalows', setBungalows, () => supabase.from('bungalows').select('id, name, type, status, capacity, price_per_night, amenities, image_url, description'), bungalows, mapDbToBungalow), [fetchData, bungalows]);
+    const fetchClients = useCallback(() => fetchData('clients', setClients, () => supabase.from('clients').select('id, name, email, phone, address, registration_date, loyalty_points'), clients, mapDbToClient), [fetchData, clients]);
+    const fetchReservations = useCallback(() => fetchData('reservations', setReservations, () => supabase.from('reservations').select('id, bungalowId, clientId, startDate, endDate, status, totalPrice'), reservations), [fetchData, reservations]);
+    const fetchInvoices = useCallback(() => fetchData('invoices', setInvoices, () => supabase.from('invoices').select('id, reservationId, clientId, issueDate, dueDate, totalAmount, status, items'), invoices), [fetchData, invoices]);
+    const fetchMaintenanceRequests = useCallback(() => fetchData('maintenanceRequests', setMaintenanceRequests, () => supabase.from('maintenance_requests').select('id, bungalowId, description, status, priority, createdDate, reportedBy, assignedToId, resolvedDate, resolutionDetails'), maintenanceRequests), [fetchData, maintenanceRequests]);
+    const fetchCommunicationLogs = useCallback(() => fetchData('communicationLogs', setCommunicationLogs, () => supabase.from('communication_logs').select('id, recipients, subject, body, sentDate, status, sentBy'), communicationLogs), [fetchData, communicationLogs]);
+    const fetchLoyaltyLogs = useCallback(() => fetchData('loyaltyLogs', setLoyaltyLogs, () => supabase.from('loyalty_logs').select('id, clientId, type, pointsChange, reason, timestamp, relatedId, adminUserId'), loyaltyLogs), [fetchData, loyaltyLogs]);
+
     useEffect(() => {
-        const fetchAllData = async () => {
-            try {
-                const [
-                    { data: bungalowsData, error: bungalowsError }, 
-                    { data: clientsData, error: clientsError },
-                    { data: reservationsData, error: reservationsError },
-                    { data: invoicesData, error: invoicesError },
-                    { data: maintenanceData, error: maintenanceError },
-                    { data: communicationData, error: communicationError },
-                    { data: loyaltyData, error: loyaltyError },
-                ] = await Promise.all([
-                    supabase.from('bungalows').select('*'),
-                    supabase.from('clients').select('*'),
-                    supabase.from('reservations').select('*'),
-                    supabase.from('invoices').select('*'),
-                    supabase.from('maintenance_requests').select('*'),
-                    supabase.from('communication_logs').select('*'),
-                    supabase.from('loyalty_logs').select('*'),
-                ]);
-
-                if (bungalowsError) throw bungalowsError;
-                if (clientsError) throw clientsError;
-                if (reservationsError) throw reservationsError;
-                if (invoicesError) throw invoicesError;
-                if (maintenanceError) throw maintenanceError;
-                if (communicationError) throw communicationError;
-                if (loyaltyError) throw loyaltyError;
-
-                setBungalows((bungalowsData as any[]).map(mapDbToBungalow) || []);
-                setClients((clientsData as any[]).map(mapDbToClient) || []);
-                setReservations((reservationsData as any[]) || []);
-                setInvoices((invoicesData as any[]) || []);
-                setMaintenanceRequests((maintenanceData as any[]) || []);
-                setCommunicationLogs((communicationData as any[]) || []);
-                setLoyaltyLogs((loyaltyData as any[]) || []);
-            } catch (error) {
-                console.error("Failed to load initial application data:", error);
-            }
-        };
-
-        fetchAllData();
-
-        // --- REALTIME SUBSCRIPTIONS ---
-        const handleInserts = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>, mapper?: (item: any) => T) => {
-            const newItem = mapper ? mapper(payload.new) : (payload.new as T);
-            setter(prev => {
-                if (prev.find(item => item.id === newItem.id)) return prev;
-                return [...prev, newItem];
-            });
-        };
-
+        const handleInserts = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>, mapper?: (item: any) => T) => setter(prev => [...prev, mapper ? mapper(payload.new) : payload.new]);
         const handleUpdates = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>, mapper?: (item: any) => T) => {
             const updatedItem = mapper ? mapper(payload.new) : (payload.new as T);
             setter(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
         };
-
-        const handleDeletes = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
-            const oldId = (payload.old as any).id;
-            setter(prev => prev.filter(item => item.id !== oldId));
-        };
+        const handleDeletes = <T extends {id: string}>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => setter(prev => prev.filter(item => item.id !== (payload.old as any).id));
         
         const createSubscription = <T extends {id: string}>(table: string, setter: React.Dispatch<React.SetStateAction<T[]>>, mapper?: (dbItem: any) => T) => {
             return supabase.channel(`${table}-changes`)
@@ -172,156 +113,75 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               .subscribe();
         };
 
-        const bungalowChannel = createSubscription('bungalows', setBungalows, mapDbToBungalow);
-        const clientChannel = createSubscription('clients', setClients, mapDbToClient);
-        const reservationChannel = createSubscription('reservations', setReservations);
-        const invoiceChannel = createSubscription('invoices', setInvoices);
-        const maintenanceChannel = createSubscription('maintenance_requests', setMaintenanceRequests);
-        const communicationChannel = createSubscription('communication_logs', setCommunicationLogs);
-        const loyaltyChannel = createSubscription('loyalty_logs', setLoyaltyLogs);
-
-        return () => {
-            supabase.removeChannel(bungalowChannel);
-            supabase.removeChannel(clientChannel);
-            supabase.removeChannel(reservationChannel);
-            supabase.removeChannel(invoiceChannel);
-            supabase.removeChannel(maintenanceChannel);
-            supabase.removeChannel(communicationChannel);
-            supabase.removeChannel(loyaltyChannel);
-        };
+        const channels = [
+            createSubscription('bungalows', setBungalows, mapDbToBungalow),
+            createSubscription('clients', setClients, mapDbToClient),
+            createSubscription('reservations', setReservations),
+            createSubscription('invoices', setInvoices),
+            createSubscription('maintenance_requests', setMaintenanceRequests),
+            createSubscription('communication_logs', setCommunicationLogs),
+            createSubscription('loyalty_logs', setLoyaltyLogs)
+        ];
+        return () => { channels.forEach(channel => supabase.removeChannel(channel)); };
     }, []);
     
     const isBungalowAvailable = (bungalowId: string, startDate: string, endDate: string, currentReservationId?: string | null): boolean => {
-        const newStart = new Date(startDate).getTime();
-        const newEnd = new Date(endDate).getTime();
-
-        const conflictingReservation = reservations.find(res => {
-            if (res.bungalowId !== bungalowId || res.id === currentReservationId || res.status === ReservationStatus.Cancelled) {
-                return false;
-            }
-            const existingStart = new Date(res.startDate).getTime();
-            const existingEnd = new Date(res.endDate).getTime();
-            return newStart < existingEnd && newEnd > existingStart;
-        });
-
-        return !conflictingReservation;
+        const newStart = new Date(startDate).getTime(), newEnd = new Date(endDate).getTime();
+        return !reservations.some(res => 
+            res.bungalowId === bungalowId && res.id !== currentReservationId && res.status !== ReservationStatus.Cancelled &&
+            newStart < new Date(res.endDate).getTime() && newEnd > new Date(res.startDate).getTime()
+        );
     };
 
     const createCrudOperations = <T extends {id: string}>(table: string) => ({
         add: async (data: Partial<T>): Promise<MutationResult<T>> => {
-            // DEFINITIVE FIX: Destructure the id out to ensure it's not sent to the database on insert.
             const { id, ...insertData } = data;
-            
             const { data: newItems, error } = await supabase.from(table).insert(insertData as any).select();
-            
-            if (error) {
-                console.error(`Error adding to ${table}:`, error);
-                return { success: false, error };
-            }
-            if (!newItems || newItems.length === 0) {
-                 console.warn(`Insert to ${table} succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
-            }
+            if (error) return { success: false, error };
             return { success: true, error: null, data: newItems?.[0] as T };
         },
         update: async (data: Partial<T>): Promise<MutationResult<T>> => {
             const { data: updatedItems, error } = await supabase.from(table).update(data as any).eq('id', data.id).select();
-             if (error) {
-                console.error(`Error updating ${table}:`, error);
-                return { success: false, error };
-            }
-            if (!updatedItems || updatedItems.length === 0) {
-                console.warn(`Update to ${table} succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
-            }
+            if (error) return { success: false, error };
             return { success: true, error: null, data: updatedItems?.[0] as T };
         },
         delete: async (id: string): Promise<MutationResult<null>> => {
             const { error } = await supabase.from(table).delete().eq('id', id);
-             if (error) {
-                console.error(`Error deleting from ${table}:`, error);
-                return { success: false, error };
-            }
-            return { success: true, error: null };
+            return { success: !error, error };
         },
     });
 
-    // --- Specific Bungalow Operations with Mapping ---
     const addBungalow = async (bungalow: Partial<Bungalow>): Promise<MutationResult<Bungalow>> => {
-        // DEFINITIVE FIX: Destructure the id out to ensure it's not sent.
         const { id, ...dataToInsert } = bungalow;
         const dbReadyData = mapBungalowToDb(dataToInsert);
-
         const { data: newItems, error } = await supabase.from('bungalows').insert(dbReadyData).select();
-        if (error) {
-            console.error(`Error adding to bungalows:`, error);
-            return { success: false, error };
-        }
-        if (!newItems || newItems.length === 0) {
-             console.warn(`Insert to bungalows succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
-        }
-        return { success: true, error: null, data: newItems?.[0] ? mapDbToBungalow(newItems[0]) : null };
+        return { success: !error, error, data: newItems?.[0] ? mapDbToBungalow(newItems[0]) : null };
     };
 
     const updateBungalow = async (bungalow: Partial<Bungalow>): Promise<MutationResult<Bungalow>> => {
-        const dbData = mapBungalowToDb(bungalow);
-        const { data: updatedItems, error } = await supabase.from('bungalows').update(dbData).eq('id', bungalow.id).select();
-        if (error) {
-            console.error(`Error updating bungalows:`, error);
-            return { success: false, error };
-        }
-        if (!updatedItems || updatedItems.length === 0) {
-            console.warn(`Update to bungalows succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
-        }
-        return { success: true, error: null, data: updatedItems?.[0] ? mapDbToBungalow(updatedItems[0]) : null };
+        const { data: updatedItems, error } = await supabase.from('bungalows').update(mapBungalowToDb(bungalow)).eq('id', bungalow.id).select();
+        return { success: !error, error, data: updatedItems?.[0] ? mapDbToBungalow(updatedItems[0]) : null };
     };
     
     const deleteBungalow = createCrudOperations<Bungalow>('bungalows').delete;
 
     const updateBungalowStatus = async (bungalowId: string, status: BungalowStatus): Promise<MutationResult<Bungalow>> => {
         const { data: updatedItems, error } = await supabase.from('bungalows').update({ status }).eq('id', bungalowId).select();
-        if (error) {
-            console.error(`Error updating bungalow status:`, error);
-            return { success: false, error };
-        }
-        if (!updatedItems || updatedItems.length === 0) {
-            console.warn(`Update to bungalow status succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
-        }
-        return { success: true, error: null, data: updatedItems?.[0] ? mapDbToBungalow(updatedItems[0]) : null };
+        return { success: !error, error, data: updatedItems?.[0] ? mapDbToBungalow(updatedItems[0]) : null };
     };
-    // --- End Specific Bungalow Operations ---
 
-     // --- Specific Client Operations with Mapping ---
     const addClient = async (client: Partial<Client>): Promise<MutationResult<Client>> => {
-        // DEFINITIVE FIX: Destructure the id out to ensure it's not sent.
         const { id, ...dataToInsert } = client;
-        const dbReadyData = mapClientToDb(dataToInsert);
-
-        const { data: newItems, error } = await supabase.from('clients').insert(dbReadyData).select();
-        if (error) {
-            console.error(`Error adding to clients:`, error);
-            return { success: false, error };
-        }
-        if (!newItems || newItems.length === 0) {
-             console.warn(`Insert to clients succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
-        }
-        return { success: true, error: null, data: newItems?.[0] ? mapDbToClient(newItems[0]) : null };
+        const { data: newItems, error } = await supabase.from('clients').insert(mapClientToDb(dataToInsert)).select();
+        return { success: !error, error, data: newItems?.[0] ? mapDbToClient(newItems[0]) : null };
     };
 
     const updateClient = async (client: Partial<Client>): Promise<MutationResult<Client>> => {
-        const dbData = mapClientToDb(client);
-        const { data: updatedItems, error } = await supabase.from('clients').update(dbData).eq('id', client.id).select();
-        if (error) {
-            console.error(`Error updating clients:`, error);
-            return { success: false, error };
-        }
-        if (!updatedItems || updatedItems.length === 0) {
-            console.warn(`Update to clients succeeded but returned no data, likely due to RLS. Realtime listener will handle UI update.`);
-        }
-        return { success: true, error: null, data: updatedItems?.[0] ? mapDbToClient(updatedItems[0]) : null };
+        const { data: updatedItems, error } = await supabase.from('clients').update(mapClientToDb(client)).eq('id', client.id).select();
+        return { success: !error, error, data: updatedItems?.[0] ? mapDbToClient(updatedItems[0]) : null };
     };
 
     const deleteClient = createCrudOperations<Client>('clients').delete;
-    // --- End Specific Client Operations ---
-
     const invoiceOps = createCrudOperations<Invoice>('invoices');
     const maintenanceOps = createCrudOperations<MaintenanceRequest>('maintenance_requests');
     const communicationOps = createCrudOperations<CommunicationLog>('communication_logs');
@@ -349,48 +209,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const addInvoices = async (invs: Partial<Invoice>[]): Promise<MutationResult<Invoice[]>> => {
         const invoicesToInsert = invs.map(i => { const { id, ...rest } = i; return rest; });
         const { data: newInvoices, error } = await supabase.from('invoices').insert(invoicesToInsert as any).select();
-        if (error) return { success: false, error };
-        return { success: true, error: null, data: newInvoices };
+        return { success: !error, error, data: newInvoices };
     };
     
-
-    const value: DataContextType = useMemo(() => ({
-        bungalows,
-        addBungalow,
-        updateBungalow,
-        updateBungalowStatus,
-        deleteBungalow,
-        clients,
-        addClient,
-        updateClient,
-        deleteClient,
-        reservations,
-        updateReservation,
-        addReservation,
-        invoices,
-        addInvoice: invoiceOps.add,
-        updateInvoice: invoiceOps.update,
-        deleteInvoice: invoiceOps.delete,
-        addInvoices,
-        maintenanceRequests,
-        addMaintenanceRequest: maintenanceOps.add,
-        updateMaintenanceRequest: maintenanceOps.update,
-        deleteMaintenanceRequest: maintenanceOps.delete,
-        communicationLogs,
+    const value = {
+        bungalows, clients, reservations, invoices, maintenanceRequests, communicationLogs, loyaltyLogs, isLoading,
+        fetchBungalows, fetchClients, fetchReservations, fetchInvoices, fetchMaintenanceRequests, fetchCommunicationLogs, fetchLoyaltyLogs,
+        addBungalow, updateBungalow, updateBungalowStatus, deleteBungalow,
+        addClient, updateClient, deleteClient,
+        updateReservation, addReservation,
+        addInvoice: invoiceOps.add, updateInvoice: invoiceOps.update, deleteInvoice: invoiceOps.delete, addInvoices,
+        addMaintenanceRequest: maintenanceOps.add, updateMaintenanceRequest: maintenanceOps.update, deleteMaintenanceRequest: maintenanceOps.delete,
         addCommunicationLog: communicationOps.add,
-        loyaltyLogs,
         addLoyaltyLog: loyaltyOps.add,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), [bungalows, clients, reservations, invoices, maintenanceRequests, communicationLogs, loyaltyLogs]);
-
+    };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
 
 export const useData = (): DataContextType => {
     const context = useContext(DataContext);
-    if (context === undefined) {
-        throw new Error('useData must be used within a DataContext');
-    }
+    if (context === undefined) throw new Error('useData must be used within a DataContext');
     return context;
 };

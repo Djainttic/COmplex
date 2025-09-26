@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Client } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
@@ -8,11 +8,15 @@ import Button from '../ui/Button';
 
 const ClientsPage: React.FC = () => {
     const { hasPermission, settings } = useAuth();
-    const { clients, addClient, updateClient, deleteClient } = useData();
+    const { clients, addClient, updateClient, deleteClient, fetchClients, isLoading } = useData();
     const [isModalOpen, setModalOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
     const canWrite = hasPermission('clients:write');
+
+    useEffect(() => {
+        fetchClients();
+    }, [fetchClients]);
 
     const handleAddClient = () => {
         setSelectedClient(null);
@@ -35,14 +39,13 @@ const ClientsPage: React.FC = () => {
 
     const handleSaveClient = async (clientToSave: Client) => {
         let result;
-        if (clientToSave.id) { // Editing
+        if (clientToSave.id) {
             result = await updateClient(clientToSave);
-        } else { // Adding
+        } else {
             const newClient: Partial<Client> = {
                 ...clientToSave,
                 registrationDate: new Date().toISOString(),
             };
-            // Only add loyalty points if the module is enabled
             if (settings.loyalty.enabled) {
                 newClient.loyaltyPoints = 0;
             }
@@ -56,6 +59,8 @@ const ClientsPage: React.FC = () => {
             alert(`Erreur lors de la sauvegarde du client : ${result.error?.message || 'Erreur inconnue'}`);
         }
     };
+    
+    const showLoading = isLoading.clients && clients.length === 0;
 
     return (
         <div>
@@ -73,11 +78,15 @@ const ClientsPage: React.FC = () => {
                 )}
             </div>
             
-            <ClientTable 
-                clients={clients}
-                onEdit={handleEditClient}
-                onDelete={handleDeleteClient}
-            />
+            {showLoading ? (
+                 <div className="text-center py-12">Chargement des clients...</div>
+            ) : (
+                <ClientTable 
+                    clients={clients}
+                    onEdit={handleEditClient}
+                    onDelete={handleDeleteClient}
+                />
+            )}
 
             {isModalOpen && (
                 <ClientFormModal

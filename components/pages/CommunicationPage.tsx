@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
 import { CommunicationLog } from '../../types';
@@ -7,11 +7,18 @@ import CommunicationLogTable from '../communication/CommunicationLogTable';
 import CommunicationFormModal from '../communication/CommunicationFormModal';
 
 const CommunicationPage: React.FC = () => {
-    const { currentUser, allUsers, hasPermission } = useAuth();
-    const { communicationLogs, addCommunicationLog, clients } = useData();
+    const { currentUser, allUsers, hasPermission, fetchUsers, loadingUsers } = useAuth();
+    const { communicationLogs, addCommunicationLog, clients, fetchCommunicationLogs, fetchClients, isLoading: isDataLoading } = useData();
     const [isModalOpen, setModalOpen] = useState(false);
 
     const canWrite = hasPermission('communication:write');
+    
+    useEffect(() => {
+        fetchCommunicationLogs();
+        fetchClients();
+        fetchUsers();
+    }, [fetchCommunicationLogs, fetchClients, fetchUsers]);
+    
     const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.name])), [allUsers]);
 
     const handleSendMessage = () => {
@@ -35,6 +42,8 @@ const CommunicationPage: React.FC = () => {
             alert(`Erreur lors de l'envoi du message : ${result.error?.message || 'Erreur inconnue'}`);
         }
     };
+    
+    const showLoading = (isDataLoading.communicationLogs || isDataLoading.clients || loadingUsers) && communicationLogs.length === 0;
 
     return (
         <div>
@@ -51,12 +60,16 @@ const CommunicationPage: React.FC = () => {
                     </Button>
                 )}
             </div>
-
-            <CommunicationLogTable 
-                logs={communicationLogs}
-                clientMap={new Map(clients.map(c => [c.id, c.name]))}
-                userMap={userMap}
-            />
+            
+            {showLoading ? (
+                 <div className="text-center py-12">Chargement de l'historique...</div>
+            ) : (
+                <CommunicationLogTable 
+                    logs={communicationLogs}
+                    clientMap={new Map(clients.map(c => [c.id, c.name]))}
+                    userMap={userMap}
+                />
+            )}
 
             {isModalOpen && (
                 <CommunicationFormModal

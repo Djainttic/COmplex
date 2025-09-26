@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
 import { Client, LoyaltyLogType } from '../../types';
@@ -11,13 +11,19 @@ import PointAdjustmentModal from '../loyalty/PointAdjustmentModal';
 type Tab = 'dashboard' | 'history' | 'settings';
 
 const LoyaltyPage: React.FC = () => {
-    const { currentUser, settings, hasPermission, allUsers } = useAuth();
-    const { clients, updateClient, loyaltyLogs, addLoyaltyLog } = useData();
+    const { currentUser, settings, hasPermission, allUsers, fetchUsers, loadingUsers } = useAuth();
+    const { clients, updateClient, loyaltyLogs, addLoyaltyLog, fetchClients, fetchLoyaltyLogs, isLoading: isDataLoading } = useData();
     const [activeTab, setActiveTab] = useState<Tab>('dashboard');
     const [isModalOpen, setModalOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
     const canWrite = hasPermission('loyalty:write');
+
+    useEffect(() => {
+        fetchClients();
+        fetchLoyaltyLogs();
+        fetchUsers();
+    }, [fetchClients, fetchLoyaltyLogs, fetchUsers]);
 
     const handleOpenModal = (client: Client) => {
         setSelectedClient(client);
@@ -30,7 +36,7 @@ const LoyaltyPage: React.FC = () => {
 
         const updatedClient = {
             ...client,
-            loyaltyPoints: client.loyaltyPoints + points
+            loyaltyPoints: (client.loyaltyPoints || 0) + points
         };
         const updateResult = await updateClient(updatedClient);
 
@@ -48,8 +54,14 @@ const LoyaltyPage: React.FC = () => {
             alert(`Erreur lors de la mise à jour des points : ${updateResult.error?.message || 'Erreur inconnue'}`);
         }
     };
+    
+    const showLoading = (isDataLoading.clients || isDataLoading.loyaltyLogs || loadingUsers) && clients.length === 0;
 
     const renderTabContent = () => {
+        if (showLoading) {
+            return <div className="text-center py-12">Chargement des données de fidélité...</div>;
+        }
+        
         switch (activeTab) {
             case 'history':
                 return <LoyaltyHistoryTable 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { BungalowStatus, MaintenanceStatus, Reservation, Client, MaintenanceRequest } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
@@ -7,24 +7,36 @@ import BungalowStatusChart from '../dashboard/BungalowStatusChart';
 import UpcomingActivities from '../dashboard/UpcomingActivities';
 import QuickActions from '../dashboard/QuickActions';
 import RecentActivityFeed from '../dashboard/RecentActivityFeed';
-// FIX: Import of getVisibleUsers was removed as it is now correctly implemented in constants.ts and used in MaintenanceFormModal via props.
 
-// Modals for Quick Actions
 import ReservationFormModal from '../reservations/ReservationFormModal';
 import ClientFormModal from '../clients/ClientFormModal';
 import MaintenanceFormModal from '../maintenance/MaintenanceFormModal';
 import { getVisibleUsers } from '../../constants';
 
+const PageLoader: React.FC = () => (
+    <div className="w-full h-full flex items-center justify-center p-10">
+      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600"></div>
+    </div>
+);
+
+
 const DashboardPage: React.FC = () => {
-    const { currentUser, allUsers } = useAuth();
+    const { currentUser, allUsers, fetchUsers, loadingUsers } = useAuth();
     const { 
         bungalows, reservations, clients, maintenanceRequests,
-        addReservation, updateReservation,
-        addClient, updateClient,
-        addMaintenanceRequest, updateMaintenanceRequest
+        fetchBungalows, fetchReservations, fetchClients, fetchMaintenanceRequests,
+        addReservation, updateReservation, addClient, updateClient,
+        addMaintenanceRequest, updateMaintenanceRequest, isLoading: isDataLoading
     } = useData();
 
-    // State for Quick Action Modals
+    useEffect(() => {
+        fetchBungalows();
+        fetchReservations();
+        fetchClients();
+        fetchMaintenanceRequests();
+        fetchUsers();
+    }, [fetchBungalows, fetchReservations, fetchClients, fetchMaintenanceRequests, fetchUsers]);
+
     const [isReservationModalOpen, setReservationModalOpen] = useState(false);
     const [isClientModalOpen, setClientModalOpen] = useState(false);
     const [isMaintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
@@ -53,7 +65,6 @@ const DashboardPage: React.FC = () => {
         return { checkInsToday, checkOutsToday, occupancyRate, pendingMaintenance };
     }, [reservations, bungalows, maintenanceRequests]);
 
-    // Handlers for Quick Actions
     const handleSaveReservation = (res: Reservation) => {
         if (res.id) updateReservation(res);
         else addReservation({ ...res, id: `res-${Date.now()}` });
@@ -78,6 +89,12 @@ const DashboardPage: React.FC = () => {
         occupancy: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
         maintenance: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" /></svg>,
     };
+    
+    const isLoading = isDataLoading.bungalows || isDataLoading.reservations || isDataLoading.clients || isDataLoading.maintenanceRequests || loadingUsers;
+
+    if (isLoading && bungalows.length === 0) {
+        return <PageLoader />;
+    }
 
     return (
         <div>
@@ -117,7 +134,6 @@ const DashboardPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modals */}
             {isReservationModalOpen && (
                 <ReservationFormModal 
                     isOpen={isReservationModalOpen}

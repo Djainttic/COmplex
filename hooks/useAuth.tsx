@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User, Settings, UserRole, Permission, RoleSetting, Currency, BungalowType, PricingAdjustmentType, UserStatus } from '../types';
 import type { Session } from 'https://aistudiocdn.com/@supabase/supabase-js@^2.44.4';
@@ -59,6 +59,8 @@ type MutationResult<T> = { success: boolean; error: any | null; data?: T | null 
 interface AuthContextType {
     currentUser: User | null;
     allUsers: User[];
+    loadingUsers: boolean;
+    fetchUsers: () => Promise<void>;
     login: (email: string, pass: string) => Promise<{ success: boolean; error: string | null }>;
     logout: () => void;
     updateUser: (user: User) => Promise<MutationResult<User>>;
@@ -95,12 +97,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
+    const [loadingUsers, setLoadingUsers] = useState(false);
     const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
+    const fetchUsers = useCallback(async () => {
+        if (allUsers.length > 0 || loadingUsers) return;
+
+        setLoadingUsers(true);
+        try {
+            const { data: allProfiles, error: allProfilesError } = await supabase
+                .from('profiles')
+                .select('*');
+            
+            if (allProfilesError) {
+                 console.error("Error fetching all profiles (check RLS policies):", allProfilesError);
+            }
+            
+            if(allProfiles) {
+                setAllUsers(allProfiles.map(mapProfileToUser));
+            }
+        } catch (error) {
+            console.error("Error fetching users list:", error);
+        } finally {
+            setLoadingUsers(false);
+        }
+
+    }, [allUsers.length, loadingUsers]);
+
     useEffect(() => {
-        const fetchInitialData = async (session: Session | null) => {
+        const fetchEssentialData = async (session: Session | null) => {
+            setLoading(true);
             try {
-                // --- Settings Fetch ---
+                // Settings and current user profile are essential and loaded on startup.
                 const { data: settingsData, error: settingsError } = await supabase
                     .from('settings')
                     .select('data')
@@ -108,17 +136,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     .maybeSingle();
                 
                 if (settingsError) {
-                    // The error code '42P01' or a message including the table name indicates an undefined table.
-                    if (settingsError.code === '42P01' || settingsError.message.includes("Could not find the table 'public.settings'")) {
-                        console.warn("The 'settings' table was not found. Using default settings. Please create the table for settings to be saved.");
-                    } else {
-                        console.error("Error fetching settings, using defaults:", settingsError.message || settingsError);
-                    }
+                    console.error("Error fetching settings, using defaults:", settingsError.message || settingsError);
                 } else if (settingsData && settingsData.data) {
                     setSettings(settingsData.data);
                 }
 
-                // --- User Profile & All Users Fetch ---
                 if (session) {
                     const { data: profile, error: profileError } = await supabase
                         .from('profiles')
@@ -132,27 +154,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     } else if (profile) {
                         setCurrentUser(mapProfileToUser(profile));
                     }
-
-                    const { data: allProfiles, error: allProfilesError } = await supabase
-                        .from('profiles')
-                        .select('*');
-                    
-                    if (allProfilesError) {
-                         console.error("Error fetching all profiles (check RLS policies):", allProfilesError);
-                    }
-                    
-                    if(allProfiles) {
-                        setAllUsers(allProfiles.map(mapProfileToUser));
-                    }
-
                 } else {
                     setCurrentUser(null);
-                    setAllUsers([]);
                 }
             } catch (error) {
-                console.error("Critical error during initial data fetch:", error);
+                console.error("Critical error during essential data fetch:", error);
                 setCurrentUser(null);
-                setAllUsers([]);
             } finally {
                 setLoading(false);
             }
@@ -160,7 +167,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
-            fetchInitialData(session);
+            fetchEssentialData(session);
         });
 
         const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -168,20 +175,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setIsPasswordRecovery(true);
             }
             setSession(session);
-            setLoading(true);
-            fetchInitialData(session);
+            // On auth change, re-fetch essential data. User list is not cleared.
+            fetchEssentialData(session);
         });
         
         // --- REALTIME SUBSCRIPTIONS ---
-
         const profilesChannel = supabase.channel('profiles-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
+                const updatedUser = mapProfileToUser(payload.new);
                 switch (payload.eventType) {
                     case 'INSERT':
-                        setAllUsers(prev => [...prev, mapProfileToUser(payload.new)]);
+                        setAllUsers(prev => [...prev, updatedUser]);
                         break;
                     case 'UPDATE':
-                        const updatedUser = mapProfileToUser(payload.new);
                         setAllUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
                         if (currentUser?.id === updatedUser.id) {
                             setCurrentUser(updatedUser);
@@ -200,16 +206,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     setSettings((payload.new as any).data);
                 }
             })
-            .subscribe((status, err: any) => {
-                if (status === 'SUBSCRIPTION_ERROR') {
-                    if (err && err.message?.includes('relation "public.settings" does not exist')) {
-                         console.warn("Realtime updates for settings are disabled because the 'settings' table was not found.");
-                    } else {
-                         console.error('Realtime subscription error for settings:', err);
-                    }
-                }
-            });
-
+            .subscribe();
 
         return () => {
             authSubscription.unsubscribe();
@@ -229,17 +226,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const logout = async () => {
         await supabase.auth.signOut();
         setCurrentUser(null);
-        setIsPasswordRecovery(false); // Reset on logout
+        setAllUsers([]); // Clear user list on logout
+        setIsPasswordRecovery(false);
     };
 
     const sendPasswordResetEmail = async (email: string) => {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin, // After password reset, user is redirected here
+            redirectTo: window.location.origin,
         });
-
         if (error) {
             console.error("Error sending password reset email:", error);
-            // Don't expose detailed errors to the user for security (e.g., "User not found")
             return { success: false, error: "Une erreur est survenue. Veuillez vérifier l'adresse e-mail et réessayer." };
         }
         return { success: true, error: null };
@@ -263,132 +259,66 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             status: user.status,
             avatar_url: user.avatarUrl,
         };
-
         const { data: updatedProfiles, error } = await supabase
             .from('profiles')
             .update(profileData)
             .eq('id', user.id)
             .select();
-        
         if (error || !updatedProfiles || updatedProfiles.length === 0) {
-            console.error("Error updating user profile:", error);
             return { success: false, error: error || 'Profil non trouvé après la mise à jour.' };
         }
-        
-        const updatedUser = mapProfileToUser(updatedProfiles[0]);
-        // The realtime subscription should handle this, but manual update ensures immediate UI feedback
-        setAllUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-        if (currentUser?.id === updatedUser.id) {
-            setCurrentUser(updatedUser);
-        }
-        return { success: true, error: null, data: updatedUser };
+        return { success: true, error: null, data: mapProfileToUser(updatedProfiles[0]) };
     };
     
     const addUser = async (userData: Partial<User>, password: string): Promise<MutationResult<User>> => {
         if (!userData.email || !userData.name) {
             const error = { message: "Email and name are required." };
-            console.error(error.message);
             return { success: false, error };
         }
-        
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: userData.email,
             password: password,
         });
-
-        if (authError || !authData.user) {
-            console.error("Error creating auth user:", authError);
-            return { success: false, error: authError };
-        }
+        if (authError || !authData.user) return { success: false, error: authError };
 
         const profileData = {
-            id: authData.user.id,
-            name: userData.name,
-            email: userData.email,
-            phone: userData.phone,
-            role: userData.role || UserRole.Employee,
-            status: userData.status || UserStatus.Active,
+            id: authData.user.id, name: userData.name, email: userData.email, phone: userData.phone,
+            role: userData.role || UserRole.Employee, status: userData.status || UserStatus.Active,
             avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(userData.name)}`,
         };
-
-        const { data: newProfiles, error: profileError } = await supabase
-            .from('profiles')
-            .insert(profileData)
-            .select();
-        
-        if (profileError || !newProfiles || newProfiles.length === 0) {
-            console.error("Error creating user profile:", profileError);
-            return { success: false, error: profileError };
-        }
-        
-        const newUser = mapProfileToUser(newProfiles[0]);
-        // The realtime subscription should handle this, but manual update ensures immediate UI feedback
-        setAllUsers(prev => [...prev, newUser]);
-        return { success: true, error: null, data: newUser };
+        const { data: newProfiles, error: profileError } = await supabase.from('profiles').insert(profileData).select();
+        if (profileError || !newProfiles || newProfiles.length === 0) return { success: false, error: profileError };
+        return { success: true, error: null, data: mapProfileToUser(newProfiles[0]) };
     };
 
     const deleteUser = async (userId: string): Promise<MutationResult<null>> => {
-        console.warn(`Deleting profile for user ${userId}. The auth user will remain unless a server-side function is configured.`);
-        
-        const { error } = await supabase
-            .from('profiles')
-            .delete()
-            .eq('id', userId);
-
-        if (error) {
-            console.error("Error deleting user profile:", error);
-            return { success: false, error };
-        }
-
-        // The realtime subscription should handle this, but manual update ensures immediate UI feedback
-        setAllUsers(prev => prev.filter(u => u.id !== userId));
+        const { error } = await supabase.from('profiles').delete().eq('id', userId);
+        if (error) return { success: false, error };
         return { success: true, error: null };
     };
 
     const updateSettings = async (newSettings: Settings) => {
-        const { error } = await supabase
-            .from('settings')
-            .upsert({ id: 1, data: newSettings });
-
+        const { error } = await supabase.from('settings').upsert({ id: 1, data: newSettings });
         if (error) {
-            if (error.code === '42P01' || error.message.includes("Could not find the table")) {
-                 console.warn("Could not save settings because the 'settings' table does not exist. Please create it in your Supabase dashboard.");
-                 alert("Impossible d'enregistrer les paramètres : la table de configuration 'settings' n'existe pas dans la base de données.");
-            } else {
-                console.error("Error updating settings:", error);
-                alert("Erreur lors de la sauvegarde des paramètres. Les modifications pourraient ne pas être conservées.");
-            }
+            console.error("Error updating settings:", error);
+            alert("Erreur lors de la sauvegarde des paramètres. Les modifications pourraient ne pas être conservées.");
         }
     };
 
     const hasPermission = useMemo(() => (requiredPermission: Permission | Permission[]): boolean => {
         if (!currentUser) return false;
         if (currentUser.role === UserRole.SuperAdmin) return true;
-
         const roleSettings = settings.roles.find(r => r.roleName === currentUser.role);
         if (!roleSettings) return false;
-        
         const permissionsToCheck = Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission];
-
         return permissionsToCheck.every(p => roleSettings.permissions[p]);
-
     }, [currentUser, settings.roles]);
 
-
     const value = {
-        currentUser,
-        allUsers,
-        login,
-        logout,
-        updateUser,
-        addUser,
-        deleteUser,
-        hasPermission,
-        settings,
-        updateSettings,
-        sendPasswordResetEmail,
-        isPasswordRecovery,
-        updatePassword,
+        currentUser, allUsers, loadingUsers, fetchUsers,
+        login, logout, updateUser, addUser, deleteUser,
+        hasPermission, settings, updateSettings, sendPasswordResetEmail,
+        isPasswordRecovery, updatePassword,
     };
 
     return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { NotificationProvider } from './hooks/useNotifications';
@@ -6,35 +6,40 @@ import { DataProvider } from './hooks/useData';
 import { Permission, UserRole } from './types';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
-import DashboardPage from './components/pages/DashboardPage';
-import BungalowsPage from './components/pages/BungalowsPage';
-import ReservationsPage from './components/pages/ReservationsPage';
-import UsersPage from './components/pages/UsersPage';
-import SettingsPage from './components/pages/SettingsPage';
-import ProfilePage from './components/pages/ProfilePage';
-import BillingPage from './components/pages/BillingPage';
-import ClientsPage from './components/pages/ClientsPage';
-import MaintenancePage from './components/pages/MaintenancePage';
-import ReportsPage from './components/pages/ReportsPage';
-import CommunicationPage from './components/pages/CommunicationPage';
 import LoginPage from './components/pages/LoginPage';
-import LoyaltyPage from './components/pages/LoyaltyPage';
 import { NAV_ITEMS } from './constants';
 import ResetPasswordPage from './components/pages/ResetPasswordPage';
 
-// FIX: Changed children type from JSX.Element to React.ReactElement to resolve "Cannot find namespace 'JSX'" error.
+// Lazy-loaded page components for code splitting
+const DashboardPage = lazy(() => import('./components/pages/DashboardPage'));
+const BungalowsPage = lazy(() => import('./components/pages/BungalowsPage'));
+const ReservationsPage = lazy(() => import('./components/pages/ReservationsPage'));
+const UsersPage = lazy(() => import('./components/pages/UsersPage'));
+const SettingsPage = lazy(() => import('./components/pages/SettingsPage'));
+const ProfilePage = lazy(() => import('./components/pages/ProfilePage'));
+const BillingPage = lazy(() => import('./components/pages/BillingPage'));
+const ClientsPage = lazy(() => import('./components/pages/ClientsPage'));
+const MaintenancePage = lazy(() => import('./components/pages/MaintenancePage'));
+const ReportsPage = lazy(() => import('./components/pages/ReportsPage'));
+const CommunicationPage = lazy(() => import('./components/pages/CommunicationPage'));
+const LoyaltyPage = lazy(() => import('./components/pages/LoyaltyPage'));
+
+
+const PageLoader: React.FC = () => (
+  <div className="w-full h-full flex items-center justify-center">
+    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600"></div>
+  </div>
+);
+
 const ProtectedRoute: React.FC<{ permission?: Permission | Permission[], children: React.ReactElement }> = ({ permission, children }) => {
     const { hasPermission, settings, currentUser } = useAuth();
     const location = useLocation();
 
-    // Find the module key from NAV_ITEMS based on the current path
     const navItem = NAV_ITEMS.find(item => item.path === location.pathname);
     const moduleKey = navItem?.path.replace('/', '') || 'dashboard';
     
-    // Default to true if not defined
     const isModuleActive = settings.moduleStatus[moduleKey] ?? true;
 
-    // SuperAdmin can see all modules regardless of active status
     if (currentUser?.role === UserRole.SuperAdmin) {
         return children;
     }
@@ -59,7 +64,9 @@ const ProtectedLayout = () => {
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Header onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} />
                 <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
-                    <Outlet /> {/* Child routes will be rendered here */}
+                    <Suspense fallback={<PageLoader />}>
+                        <Outlet />
+                    </Suspense>
                 </main>
             </div>
         </div>
@@ -141,7 +148,9 @@ const App: React.FC = () => {
             <NotificationProvider>
                 <DataProvider>
                     <Router>
-                        <AppRoutes />
+                        <Suspense fallback={<PageLoader />}>
+                            <AppRoutes />
+                        </Suspense>
                     </Router>
                 </DataProvider>
             </NotificationProvider>
