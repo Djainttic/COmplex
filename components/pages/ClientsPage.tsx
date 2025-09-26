@@ -7,7 +7,7 @@ import ClientFormModal from '../clients/ClientFormModal';
 import Button from '../ui/Button';
 
 const ClientsPage: React.FC = () => {
-    const { hasPermission } = useAuth();
+    const { hasPermission, settings } = useAuth();
     const { clients, addClient, updateClient, deleteClient } = useData();
     const [isModalOpen, setModalOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -41,8 +41,11 @@ const ClientsPage: React.FC = () => {
             const newClient: Partial<Client> = {
                 ...clientToSave,
                 registrationDate: new Date().toISOString(),
-                loyaltyPoints: 0,
             };
+            // Only add loyalty points if the module is enabled
+            if (settings.loyalty.enabled) {
+                newClient.loyaltyPoints = 0;
+            }
             result = await addClient(newClient);
         }
         

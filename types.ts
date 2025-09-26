@@ -201,7 +201,7 @@ export interface Client {
     phone?: string;
     address?: string;
     registrationDate: string;
-    loyaltyPoints: number;
+    loyaltyPoints?: number;
 }
 
 export enum MaintenanceStatus {

@@ -12,7 +12,7 @@ interface ClientFormModalProps {
 }
 
 const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSave, client }) => {
-    const { hasPermission } = useAuth();
+    const { hasPermission, settings } = useAuth();
     // Admin has full write access, can edit points.
     const canEditPoints = hasPermission('users:write'); 
     
@@ -122,7 +122,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSa
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 sm:text-sm"
                     />
                 </div>
-                 {client && (
+                 {client && settings.loyalty.enabled && (
                     <div>
                         <label htmlFor="loyaltyPoints" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Points de fidélité</label>
                         <input

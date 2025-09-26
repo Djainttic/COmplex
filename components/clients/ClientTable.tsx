@@ -10,7 +10,7 @@ interface ClientTableProps {
 }
 
 const ClientTable: React.FC<ClientTableProps> = ({ clients, onEdit, onDelete }) => {
-    const { hasPermission } = useAuth();
+    const { hasPermission, settings } = useAuth();
     const canWrite = hasPermission('clients:write');
 
     return (
@@ -22,7 +22,9 @@ const ClientTable: React.FC<ClientTableProps> = ({ clients, onEdit, onDelete }) 
                             <th scope="col" className="px-6 py-3">Client</th>
                             <th scope="col" className="px-6 py-3">Contact</th>
                             <th scope="col" className="px-6 py-3">Date d'inscription</th>
-                            <th scope="col" className="px-6 py-3">Points de fidélité</th>
+                            {settings.loyalty.enabled && (
+                                <th scope="col" className="px-6 py-3">Points de fidélité</th>
+                            )}
                             <th scope="col" className="px-6 py-3"><span className="sr-only">Actions</span></th>
                         </tr>
                     </thead>
@@ -40,9 +42,11 @@ const ClientTable: React.FC<ClientTableProps> = ({ clients, onEdit, onDelete }) 
                                 <td className="px-6 py-4">
                                     {formatDateDDMMYYYY(client.registrationDate)}
                                 </td>
-                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                                    {client.loyaltyPoints}
-                                </td>
+                                {settings.loyalty.enabled && (
+                                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                        {client.loyaltyPoints || 0}
+                                    </td>
+                                )}
                                 <td className="px-6 py-4 text-right space-x-2">
                                     {canWrite && (
                                         <>
