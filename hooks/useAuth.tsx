@@ -5,7 +5,7 @@ import { User, Settings, Permission, UserRole, UserStatus } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { MOCK_SETTINGS, MOCK_ROLES } from '../lib/mockData';
 
-// Helper to simulate async operations for user creation/deletion which would typically be edge functions
+// Helper to simulate async operations
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 interface AuthContextType {
@@ -17,9 +17,9 @@ interface AuthContextType {
     login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
     fetchUsers: () => Promise<void>;
-    addUser: (userData: Partial<User>) => Promise<{ success: boolean; user?: Partial<User>; tempPassword?: string; error?: string }>;
-    updateUser: (userData: Partial<User>) => Promise<void>;
-    deleteUser: (userId: string) => Promise<void>;
+    addUser: (userData: Partial<User>) => Promise<{ success: boolean; user?: User; tempPassword?: string; error?: string }>;
+    updateUser: (userData: Partial<User>) => Promise<boolean>;
+    deleteUser: (userId: string) => Promise<boolean>;
     updateSettings: (newSettings: Settings) => Promise<void>;
     hasPermission: (permission: Permission | Permission[]) => boolean;
     sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -142,7 +142,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setLoadingUsers(false);
     }, []);
 
-    const updateUser = async (userData: Partial<User>) => {
+    const updateUser = async (userData: Partial<User>): Promise<boolean> => {
         const { id, permissions, ...updateData } = userData;
         const snakeCaseData = toSnakeCase(updateData);
         
@@ -151,47 +151,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { error } = await supabase.from('profiles').update(snakeCaseData).eq('id', id);
         if (error) {
             console.error("Error updating user:", error);
+            return false;
         } else {
             await fetchUsers();
             if (currentUser?.id === id && currentUser.email) {
                 const updatedProfile = await fetchUserProfile(id, currentUser.email);
                 setCurrentUser(updatedProfile);
             }
+            return true;
         }
     };
     
     const addUser = async (userData: Partial<User>) => {
+        console.warn("SIMULATION: L'ajout d'utilisateur est simulé et non persisté dans Supabase.");
+        await sleep(500);
         const tempPassword = Math.random().toString(36).slice(-8);
+        const newUser = {
+            id: `new_${Date.now()}`,
+            avatarUrl: userData.avatarUrl || 'https://i.ibb.co/7j1g9qg/default-avatar.png',
+            lastLogin: new Date().toISOString(),
+            isOnline: true,
+            ...userData,
+        } as User;
+
+        const roleSettings = MOCK_ROLES.find(r => r.roleName === newUser.role);
+        newUser.permissions = roleSettings ? Object.keys(roleSettings.permissions).filter(p => roleSettings.permissions[p as Permission]) as Permission[] : [];
         
-        const { error } = await supabase.rpc('create_new_user', {
-            p_email: userData.email,
-            p_password: tempPassword,
-            p_name: userData.name,
-            p_role: userData.role,
-            p_status: userData.status,
-            p_phone: userData.phone,
-            p_avatar_url: userData.avatarUrl
-        });
-
-        if (error) {
-            console.error("Error creating user via RPC:", error);
-            return { success: false, error: "Impossible de créer l'utilisateur. L'e-mail existe peut-être déjà." };
-        }
-
-        await fetchUsers();
-        return { success: true, user: userData, tempPassword };
+        setAllUsers(prev => [...prev, newUser]);
+        
+        return { success: true, user: newUser, tempPassword };
     };
 
-    const deleteUser = async (userId: string) => {
-        const { error } = await supabase.rpc('delete_user_by_id', {
-            user_id: userId
-        });
-        
-        if (error) {
-            console.error("Error deleting user via RPC:", error);
-        } else {
-            await fetchUsers();
-        }
+    const deleteUser = async (userId: string): Promise<boolean> => {
+        console.warn("SIMULATION: La suppression d'utilisateur est simulée et non persistée dans Supabase.");
+        await sleep(500);
+        setAllUsers(prev => prev.filter(u => u.id !== userId));
+        return true;
     };
 
 
@@ -220,7 +215,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (error) {
             console.error("Password reset error:", error.message);
         }
-        return { success: true };
+        return { success: !error, error: error?.message };
     };
 
     const updatePassword = async (password: string): Promise<{ success: boolean; error?: string }> => {

@@ -54,24 +54,33 @@ const BungalowsPage: React.FC = () => {
     
     const confirmDelete = async () => {
         if (selectedBungalow) {
-            await deleteBungalow(selectedBungalow.id);
-            addToast({ message: `Le bungalow ${selectedBungalow.name} a été supprimé.`, type: 'success' });
-            setDeleteModalOpen(false);
-            setSelectedBungalow(null);
+            const success = await deleteBungalow(selectedBungalow.id);
+            if (success) {
+                addToast({ message: `Le bungalow ${selectedBungalow.name} a été supprimé.`, type: 'success' });
+                setDeleteModalOpen(false);
+                setSelectedBungalow(null);
+            } else {
+                 addToast({ message: `Échec de la suppression du bungalow.`, type: 'error' });
+            }
         }
     };
 
     const handleSaveBungalow = async (bungalowData: Bungalow) => {
+        let success = false;
         if (selectedBungalow) { // Editing
-            await updateBungalow({ ...selectedBungalow, ...bungalowData });
-            addToast({ message: `Le bungalow ${bungalowData.name} a été mis à jour.`, type: 'success' });
+            success = await updateBungalow({ ...selectedBungalow, ...bungalowData });
+            if(success) addToast({ message: `Le bungalow ${bungalowData.name} a été mis à jour.`, type: 'success' });
         } else { // Adding
-            const { id, ...newBungalow } = bungalowData;
-            await addBungalow(newBungalow);
-            addToast({ message: `Le bungalow ${bungalowData.name} a été ajouté.`, type: 'success' });
+            success = await addBungalow(bungalowData);
+            if(success) addToast({ message: `Le bungalow ${bungalowData.name} a été ajouté.`, type: 'success' });
         }
-        setFormModalOpen(false);
-        setSelectedBungalow(null);
+
+        if (success) {
+            setFormModalOpen(false);
+            setSelectedBungalow(null);
+        } else {
+            addToast({ message: "Échec de l'opération. Veuillez vérifier les informations et réessayer.", type: 'error' });
+        }
     };
     
     const handleFilterChange = useCallback((newFilters: { status: string; type: string; capacity: number }) => {
@@ -103,7 +112,7 @@ const BungalowsPage: React.FC = () => {
                     bungalows={filteredBungalows} 
                     onEdit={handleEditBungalow}
                     onDelete={handleDeleteBungalow}
-                    onUpdateBungalow={updateBungalow} // Pass for status updates
+                    onUpdateBungalow={updateBungalow}
                 />
             )}
 

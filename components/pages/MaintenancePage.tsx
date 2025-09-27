@@ -63,24 +63,33 @@ const MaintenancePage: React.FC = () => {
     
     const confirmDelete = async () => {
         if (selectedRequest) {
-            await deleteMaintenanceRequest(selectedRequest.id);
-            addToast({ message: `Demande de maintenance supprimée.`, type: 'success' });
-            setDeleteModalOpen(false);
-            setSelectedRequest(null);
+            const success = await deleteMaintenanceRequest(selectedRequest.id);
+            if (success) {
+                addToast({ message: `Demande de maintenance supprimée.`, type: 'success' });
+                setDeleteModalOpen(false);
+                setSelectedRequest(null);
+            } else {
+                 addToast({ message: 'Échec de la suppression.', type: 'error' });
+            }
         }
     };
     
     const handleSaveRequest = async (requestData: MaintenanceRequest) => {
+        let success = false;
         if (selectedRequest) { // Editing
-            await updateMaintenanceRequest({ ...selectedRequest, ...requestData });
-            addToast({ message: 'Demande de maintenance mise à jour.', type: 'success' });
+            success = await updateMaintenanceRequest({ ...selectedRequest, ...requestData });
+            if(success) addToast({ message: 'Demande de maintenance mise à jour.', type: 'success' });
         } else { // Adding
-            const { id, ...newRequest } = requestData;
-            await addMaintenanceRequest(newRequest);
-            addToast({ message: 'Nouvelle demande de maintenance ajoutée.', type: 'success' });
+            success = await addMaintenanceRequest(requestData);
+            if(success) addToast({ message: 'Nouvelle demande de maintenance ajoutée.', type: 'success' });
         }
-        setFormModalOpen(false);
-        setSelectedRequest(null);
+        
+        if (success) {
+            setFormModalOpen(false);
+            setSelectedRequest(null);
+        } else {
+            addToast({ message: 'Échec de la sauvegarde de la demande.', type: 'error' });
+        }
     };
 
     const isLoading = isDataLoading.maintenanceRequests || isDataLoading.bungalows || loadingUsers;

@@ -46,26 +46,38 @@ const UsersPage: React.FC = () => {
     
     const confirmDelete = async () => {
         if (selectedUser) {
-            await deleteUser(selectedUser.id);
-            addToast({ message: `L'utilisateur ${selectedUser.name} a été supprimé.`, type: 'success' });
-            setDeleteModalOpen(false);
-            setSelectedUser(null);
+            const success = await deleteUser(selectedUser.id);
+            if (success) {
+                addToast({ message: `L'utilisateur ${selectedUser.name} a été supprimé.`, type: 'success' });
+                setDeleteModalOpen(false);
+                setSelectedUser(null);
+            } else {
+                addToast({ message: `Échec de la suppression de l'utilisateur.`, type: 'error' });
+            }
         }
     };
 
     const handleSaveUser = async (userData: Partial<User>) => {
         if (selectedUser) { // Editing existing user
-            await updateUser({ ...selectedUser, ...userData });
-            addToast({ message: `L'utilisateur ${userData.name} a été mis à jour.`, type: 'success' });
+            const success = await updateUser({ ...selectedUser, ...userData });
+            if (success) {
+                addToast({ message: `L'utilisateur ${userData.name} a été mis à jour.`, type: 'success' });
+                setFormModalOpen(false);
+                setSelectedUser(null);
+            } else {
+                 addToast({ message: "Échec de la mise à jour.", type: 'error' });
+            }
         } else { // Adding new user
             const result = await addUser(userData);
             if (result.success && result.user && result.tempPassword) {
                 setNewUserCredentials({ email: result.user.email!, temporaryPassword: result.tempPassword });
                 setSuccessModalOpen(true);
+                setFormModalOpen(false);
+                setSelectedUser(null);
+            } else {
+                addToast({ message: result.error || "Échec de la création.", type: 'error' });
             }
         }
-        setFormModalOpen(false);
-        setSelectedUser(null);
     };
 
     return (

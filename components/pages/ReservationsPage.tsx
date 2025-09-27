@@ -61,15 +61,20 @@ const ReservationsPage: React.FC = () => {
     };
     
     const handleSaveReservation = async (res: Reservation) => {
+        let success = false;
         if (res.id) { // Editing
-            await updateReservation(res);
-            addToast({ message: `Réservation #${res.id.slice(-5)} mise à jour.`, type: 'success' });
+            success = await updateReservation(res);
+            if(success) addToast({ message: `Réservation mise à jour.`, type: 'success' });
         } else { // Adding
-            const { id, ...newRes } = res;
-            await addReservation(newRes);
-            addToast({ message: 'Nouvelle réservation ajoutée avec succès.', type: 'success' });
+            success = await addReservation(res);
+            if(success) addToast({ message: 'Nouvelle réservation ajoutée avec succès.', type: 'success' });
         }
-        setFormModalOpen(false);
+        
+        if (success) {
+            setFormModalOpen(false);
+        } else {
+            addToast({ message: "Échec de l'enregistrement de la réservation.", type: 'error' });
+        }
     };
 
     const selectedBungalow = bungalows.find(b => b.id === selectedReservation?.bungalowId);

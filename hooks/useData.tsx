@@ -61,7 +61,6 @@ interface DataContextType {
     loyaltyLogs: LoyaltyLog[];
     isLoading: LoadingStates;
     
-    // Dashboard specific state
     dashboardStats: DashboardStats;
     dashboardBungalows: Pick<Bungalow, 'id' | 'status'>[];
     dashboardReservations: Reservation[];
@@ -70,33 +69,33 @@ interface DataContextType {
     fetchDashboardData: () => Promise<void>;
 
     fetchBungalows: () => Promise<void>;
-    addBungalow: (bungalow: Partial<Bungalow>) => Promise<void>;
-    updateBungalow: (bungalow: Bungalow) => Promise<void>;
-    deleteBungalow: (id: string) => Promise<void>;
+    addBungalow: (bungalow: Partial<Bungalow>) => Promise<boolean>;
+    updateBungalow: (bungalow: Bungalow) => Promise<boolean>;
+    deleteBungalow: (id: string) => Promise<boolean>;
     
     fetchReservations: () => Promise<void>;
-    addReservation: (reservation: Partial<Reservation>) => Promise<void>;
-    updateReservation: (reservation: Reservation) => Promise<void>;
+    addReservation: (reservation: Partial<Reservation>) => Promise<boolean>;
+    updateReservation: (reservation: Reservation) => Promise<boolean>;
     
     fetchClients: () => Promise<void>;
-    addClient: (client: Partial<Client>) => Promise<void>;
-    updateClient: (client: Client) => Promise<void>;
-    deleteClient: (id: string) => Promise<void>;
+    addClient: (client: Partial<Client>) => Promise<boolean>;
+    updateClient: (client: Client) => Promise<boolean>;
+    deleteClient: (id: string) => Promise<boolean>;
     
     fetchInvoices: () => Promise<void>;
-    addInvoice: (invoice: Partial<Invoice>) => Promise<void>;
-    updateInvoice: (invoice: Invoice) => Promise<void>;
+    addInvoice: (invoice: Partial<Invoice>) => Promise<boolean>;
+    updateInvoice: (invoice: Invoice) => Promise<boolean>;
     
     fetchMaintenanceRequests: () => Promise<void>;
-    addMaintenanceRequest: (request: Partial<MaintenanceRequest>) => Promise<void>;
-    updateMaintenanceRequest: (request: MaintenanceRequest) => Promise<void>;
-    deleteMaintenanceRequest: (id: string) => Promise<void>;
+    addMaintenanceRequest: (request: Partial<MaintenanceRequest>) => Promise<boolean>;
+    updateMaintenanceRequest: (request: MaintenanceRequest) => Promise<boolean>;
+    deleteMaintenanceRequest: (id: string) => Promise<boolean>;
     
     fetchCommunicationLogs: () => Promise<void>;
-    addCommunicationLog: (log: Partial<CommunicationLog>) => Promise<void>;
+    addCommunicationLog: (log: Partial<CommunicationLog>) => Promise<boolean>;
 
     fetchLoyaltyLogs: () => Promise<void>;
-    addLoyaltyLog: (log: Partial<LoyaltyLog>) => Promise<void>;
+    addLoyaltyLog: (log: Partial<LoyaltyLog>) => Promise<boolean>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -110,55 +109,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [communicationLogs, setCommunicationLogs] = useState<CommunicationLog[]>([]);
     const [loyaltyLogs, setLoyaltyLogs] = useState<LoyaltyLog[]>([]);
     
-    // Dashboard specific state
     const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ checkInsToday: 0, checkOutsToday: 0, occupancyRate: 0, pendingMaintenance: 0 });
     const [dashboardBungalows, setDashboardBungalows] = useState<Pick<Bungalow, 'id' | 'status'>[]>([]);
     const [dashboardReservations, setDashboardReservations] = useState<Reservation[]>([]);
     const [dashboardMaintenanceRequests, setDashboardMaintenanceRequests] = useState<MaintenanceRequest[]>([]);
-
 
     const [isLoading, setIsLoading] = useState<LoadingStates>({
         bungalows: true, reservations: true, clients: true, maintenanceRequests: true,
         invoices: true, communicationLogs: true, loyaltyLogs: true, dashboard: true,
     });
     
-    const setLoading = (key: keyof LoadingStates, value: boolean) => {
-        setIsLoading(prev => ({...prev, [key]: value}));
-    };
-    
-    const handleError = (error: any, context: string) => {
-        console.error(`Error in ${context}:`, error.message);
-        // Here you could use a toast notification to inform the user
-    };
+    const setLoading = (key: keyof LoadingStates, value: boolean) => setIsLoading(prev => ({...prev, [key]: value}));
+    const handleError = (error: any, context: string) => console.error(`Error in ${context}:`, error.message);
 
     const fetchDashboardData = useCallback(async () => {
         setLoading('dashboard', true);
-        try {
-            const { data, error } = await supabase.rpc('get_dashboard_data');
-
-            if (error) {
-                throw error;
-            }
-
-            if (data) {
-                setDashboardStats(data.stats);
-                setDashboardBungalows(data.bungalowStatuses);
-                
-                // Combine and deduplicate reservations for the activity feeds
-                const allReservations = [...data.upcomingReservations, ...data.recentReservations];
-                const uniqueReservations = Array.from(new Map(allReservations.map(item => [item.id, item])).values());
-                setDashboardReservations(uniqueReservations);
-
-                setDashboardMaintenanceRequests(data.recentMaintenance);
-            }
-        } catch (e: any) {
-            handleError(e, 'fetching dashboard data via RPC');
-        } finally {
-            setLoading('dashboard', false);
+        const { data, error } = await supabase.rpc('get_dashboard_data');
+        if (error) handleError(error, 'fetching dashboard data via RPC');
+        else if (data) {
+            setDashboardStats(data.stats);
+            setDashboardBungalows(data.bungalowStatuses);
+            const allReservations = [...data.upcomingReservations, ...data.recentReservations];
+            const uniqueReservations = Array.from(new Map(allReservations.map(item => [item.id, item])).values());
+            setDashboardReservations(uniqueReservations);
+            setDashboardMaintenanceRequests(data.recentMaintenance);
         }
+        setLoading('dashboard', false);
     }, []);
 
-    // Generic fetcher
     const createFetcher = (tableName: string, setter: React.Dispatch<any>, stateKey: keyof LoadingStates, columns = '*') => 
         useCallback(async () => {
             setLoading(stateKey, true);
@@ -176,78 +154,49 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const fetchCommunicationLogs = createFetcher('communication_logs', setCommunicationLogs, 'communicationLogs');
     const fetchLoyaltyLogs = createFetcher('loyalty_logs', setLoyaltyLogs, 'loyaltyLogs');
     
-    const addBungalow = async (bungalow: Partial<Bungalow>) => {
-        const { error } = await supabase.from('bungalows').insert([toSnakeCase(bungalow)]);
-        if (error) handleError(error, 'adding bungalow'); else await fetchBungalows();
+    const createGenericAdder = <T extends { id?: string }>(tableName: string, fetcher: () => Promise<void>) => async (item: Partial<T>): Promise<boolean> => {
+        const { id, ...data } = item;
+        const { error } = await supabase.from(tableName).insert([toSnakeCase(data)]);
+        if (error) { handleError(error, `adding ${tableName}`); return false; }
+        await fetcher();
+        return true;
     };
-    const updateBungalow = async (bungalow: Bungalow) => {
-        const { id, ...data } = bungalow;
-        const { error } = await supabase.from('bungalows').update(toSnakeCase(data)).eq('id', id);
-        if (error) handleError(error, 'updating bungalow'); else await fetchBungalows();
+
+    const createGenericUpdater = <T extends { id: string }>(tableName: string, fetcher: () => Promise<void>) => async (item: T): Promise<boolean> => {
+        const { id, ...data } = item;
+        const { error } = await supabase.from(tableName).update(toSnakeCase(data)).eq('id', id);
+        if (error) { handleError(error, `updating ${tableName}`); return false; }
+        await fetcher();
+        return true;
     };
-    const deleteBungalow = async (id: string) => {
-        const { error } = await supabase.from('bungalows').delete().eq('id', id);
-        if (error) handleError(error, 'deleting bungalow'); else await fetchBungalows();
+
+    const createGenericDeleter = (tableName: string, fetcher: () => Promise<void>) => async (id: string): Promise<boolean> => {
+        const { error } = await supabase.from(tableName).delete().eq('id', id);
+        if (error) { handleError(error, `deleting ${tableName}`); return false; }
+        await fetcher();
+        return true;
     };
+
+    const addBungalow = createGenericAdder<Bungalow>('bungalows', fetchBungalows);
+    const updateBungalow = createGenericUpdater<Bungalow>('bungalows', fetchBungalows);
+    const deleteBungalow = createGenericDeleter('bungalows', fetchBungalows);
     
-    const addReservation = async (reservation: Partial<Reservation>) => {
-        const { error } = await supabase.from('reservations').insert([toSnakeCase(reservation)]);
-        if (error) handleError(error, 'adding reservation'); else await fetchReservations();
-    };
-    const updateReservation = async (reservation: Reservation) => {
-        const { id, ...data } = reservation;
-        const { error } = await supabase.from('reservations').update(toSnakeCase(data)).eq('id', id);
-        if (error) handleError(error, 'updating reservation'); else await fetchReservations();
-    };
-
-    const addClient = async (client: Partial<Client>) => {
-        const { error } = await supabase.from('clients').insert([toSnakeCase(client)]);
-        if (error) handleError(error, 'adding client'); else await fetchClients();
-    };
-    const updateClient = async (client: Client) => {
-        const { id, ...data } = client;
-        const { error } = await supabase.from('clients').update(toSnakeCase(data)).eq('id', id);
-        if (error) handleError(error, 'updating client'); else await fetchClients();
-    };
-    const deleteClient = async (id: string) => {
-        const { error } = await supabase.from('clients').delete().eq('id', id);
-        if (error) handleError(error, 'deleting client'); else await fetchClients();
-    };
-
-    const addInvoice = async (invoice: Partial<Invoice>) => {
-        const { error } = await supabase.from('invoices').insert([toSnakeCase(invoice)]);
-        if (error) handleError(error, 'adding invoice'); else await fetchInvoices();
-    };
-    const updateInvoice = async (invoice: Invoice) => {
-        const { id, ...data } = invoice;
-        const { error } = await supabase.from('invoices').update(toSnakeCase(data)).eq('id', id);
-        if (error) handleError(error, 'updating invoice'); else await fetchInvoices();
-    };
+    const addReservation = createGenericAdder<Reservation>('reservations', fetchReservations);
+    const updateReservation = createGenericUpdater<Reservation>('reservations', fetchReservations);
     
-    const addMaintenanceRequest = async (request: Partial<MaintenanceRequest>) => {
-        const { error } = await supabase.from('maintenance_requests').insert([toSnakeCase(request)]);
-        if (error) handleError(error, 'adding maintenance request'); else await fetchMaintenanceRequests();
-    };
-    const updateMaintenanceRequest = async (request: MaintenanceRequest) => {
-        const { id, ...data } = request;
-        const { error } = await supabase.from('maintenance_requests').update(toSnakeCase(data)).eq('id', id);
-        if (error) handleError(error, 'updating maintenance request'); else await fetchMaintenanceRequests();
-    };
-    const deleteMaintenanceRequest = async (id: string) => {
-        const { error } = await supabase.from('maintenance_requests').delete().eq('id', id);
-        if (error) handleError(error, 'deleting maintenance request'); else await fetchMaintenanceRequests();
-    };
-
-    const addCommunicationLog = async (log: Partial<CommunicationLog>) => {
-        const { error } = await supabase.from('communication_logs').insert([toSnakeCase(log)]);
-        if (error) handleError(error, 'adding communication log'); else await fetchCommunicationLogs();
-    };
+    const addClient = createGenericAdder<Client>('clients', fetchClients);
+    const updateClient = createGenericUpdater<Client>('clients', fetchClients);
+    const deleteClient = createGenericDeleter('clients', fetchClients);
     
-    const addLoyaltyLog = async (log: Partial<LoyaltyLog>) => {
-        const { error } = await supabase.from('loyalty_logs').insert([toSnakeCase(log)]);
-        if (error) handleError(error, 'adding loyalty log'); else await fetchLoyaltyLogs();
-    };
-
+    const addInvoice = createGenericAdder<Invoice>('invoices', fetchInvoices);
+    const updateInvoice = createGenericUpdater<Invoice>('invoices', fetchInvoices);
+    
+    const addMaintenanceRequest = createGenericAdder<MaintenanceRequest>('maintenance_requests', fetchMaintenanceRequests);
+    const updateMaintenanceRequest = createGenericUpdater<MaintenanceRequest>('maintenance_requests', fetchMaintenanceRequests);
+    const deleteMaintenanceRequest = createGenericDeleter('maintenance_requests', fetchMaintenanceRequests);
+    
+    const addCommunicationLog = createGenericAdder<CommunicationLog>('communication_logs', fetchCommunicationLogs);
+    const addLoyaltyLog = createGenericAdder<LoyaltyLog>('loyalty_logs', fetchLoyaltyLogs);
 
     const value = {
         bungalows, reservations, clients, maintenanceRequests, invoices, communicationLogs, loyaltyLogs, isLoading,

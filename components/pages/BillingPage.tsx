@@ -73,21 +73,30 @@ const BillingPage: React.FC = () => {
     const handleUpdateStatus = async (invoiceId: string, status: InvoiceStatus) => {
         const invoice = invoices.find(i => i.id === invoiceId);
         if (invoice) {
-            await updateInvoice({ ...invoice, status });
-            addToast({ message: `Statut de la facture #${invoiceId} mis à jour.`, type: 'info' });
+            const success = await updateInvoice({ ...invoice, status });
+            if (success) {
+                addToast({ message: `Statut de la facture mis à jour.`, type: 'info' });
+            } else {
+                addToast({ message: 'Échec de la mise à jour.', type: 'error' });
+            }
         }
     };
     
     const handleSaveInvoice = async (invoice: Invoice) => {
+        let success = false;
         if (invoice.id) {
-            await updateInvoice(invoice);
-            addToast({ message: `Facture #${invoice.id} mise à jour.`, type: 'success' });
+            success = await updateInvoice(invoice);
+            if(success) addToast({ message: `Facture #${invoice.id} mise à jour.`, type: 'success' });
         } else {
-            const { id, ...newInvoice } = invoice;
-            await addInvoice(newInvoice);
-            addToast({ message: 'Nouvelle facture créée.', type: 'success' });
+            success = await addInvoice(invoice);
+            if(success) addToast({ message: 'Nouvelle facture créée.', type: 'success' });
         }
-        setFormModalOpen(false);
+        
+        if (success) {
+            setFormModalOpen(false);
+        } else {
+            addToast({ message: 'Échec de la sauvegarde de la facture.', type: 'error' });
+        }
     };
     
     const reservationsToInvoice = useMemo(() => {
@@ -95,26 +104,35 @@ const BillingPage: React.FC = () => {
         return reservations.filter(r => r.status === ReservationStatus.Confirmed && !invoicedReservationIds.has(r.id));
     }, [reservations, invoices]);
 
-    const handleGenerateFromReservations = (selectedReservations: Reservation[]) => {
-        // This would typically be a server-side process. Here we simulate it.
-        selectedReservations.forEach(res => {
+    const handleGenerateFromReservations = async (selectedReservations: Reservation[]) => {
+        const promises = selectedReservations.map(res => {
             const bungalow = bungalows.find(b => b.id === res.bungalowId);
             const nights = (new Date(res.endDate).getTime() - new Date(res.startDate).getTime()) / (1000 * 3600 * 24);
             
             const newItem: InvoiceItem = {
                 description: `Séjour ${bungalow?.name || ''} - ${nights} nuit(s)`,
-                quantity: nights,
-                unitPrice: res.totalPrice / nights,
+                quantity: nights > 0 ? nights : 1,
+                unitPrice: nights > 0 ? res.totalPrice / nights : res.totalPrice,
                 total: res.totalPrice,
             };
             
-            addInvoice({
+            return addInvoice({
                 clientId: res.clientId,
                 reservationId: res.id,
                 items: [newItem],
             } as Partial<Invoice>);
         });
-        addToast({ message: `${selectedReservations.length} facture(s) générée(s).`, type: 'success' });
+
+        const results = await Promise.all(promises);
+        const successfulCreations = results.filter(Boolean).length;
+
+        if (successfulCreations > 0) {
+            addToast({ message: `${successfulCreations} facture(s) générée(s).`, type: 'success' });
+        }
+        if (successfulCreations < selectedReservations.length) {
+             addToast({ message: `Échec de la création pour ${selectedReservations.length - successfulCreations} réservation(s).`, type: 'error' });
+        }
+        
         setSelectionModalOpen(false);
     };
 
@@ -145,7 +163,7 @@ const BillingPage: React.FC = () => {
                 </div>
                 {canWrite && (
                     <div className="flex gap-2">
-                        <Button variant="secondary" onClick={() => setSelectionModalOpen(true)}>
+                        <Button variant="secondary" onClick={() => setSelectionModalOpen(true)} disabled={reservationsToInvoice.length === 0}>
                             Facturer depuis Réservations
                         </Button>
                         <Button onClick={handleAddInvoice}>Créer une facture</Button>

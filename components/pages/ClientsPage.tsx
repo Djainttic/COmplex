@@ -52,24 +52,33 @@ const ClientsPage: React.FC = () => {
 
     const confirmDelete = async () => {
         if (selectedClient) {
-            await deleteClient(selectedClient.id);
-            addToast({ message: `Le client ${selectedClient.name} a été supprimé.`, type: 'success' });
-            setDeleteModalOpen(false);
-            setSelectedClient(null);
+            const success = await deleteClient(selectedClient.id);
+            if (success) {
+                addToast({ message: `Le client ${selectedClient.name} a été supprimé.`, type: 'success' });
+                setDeleteModalOpen(false);
+                setSelectedClient(null);
+            } else {
+                addToast({ message: 'Échec de la suppression du client.', type: 'error' });
+            }
         }
     };
 
     const handleSaveClient = async (clientData: Client) => {
+        let success = false;
         if (selectedClient) { // Editing
-            await updateClient({ ...selectedClient, ...clientData });
-            addToast({ message: `Le client ${clientData.name} a été mis à jour.`, type: 'success' });
+            success = await updateClient({ ...selectedClient, ...clientData });
+            if(success) addToast({ message: `Le client ${clientData.name} a été mis à jour.`, type: 'success' });
         } else { // Adding
-            const { id, ...newClient } = clientData;
-            await addClient(newClient);
-            addToast({ message: `Le client ${clientData.name} a été ajouté.`, type: 'success' });
+            success = await addClient(clientData);
+            if(success) addToast({ message: `Le client ${clientData.name} a été ajouté.`, type: 'success' });
         }
-        setFormModalOpen(false);
-        setSelectedClient(null);
+        
+        if (success) {
+            setFormModalOpen(false);
+            setSelectedClient(null);
+        } else {
+             addToast({ message: "Échec de l'enregistrement du client.", type: 'error' });
+        }
     };
 
     return (
