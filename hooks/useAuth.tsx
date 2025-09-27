@@ -91,6 +91,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     useEffect(() => {
+        setLoading(true);
+
+        // Immediately check for an existing session on initial app load.
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                return fetchUserProfile(session.user.id, session.user.email);
+            }
+            return null;
+        }).then(profile => {
+            setCurrentUser(profile);
+        }).finally(() => {
+            // This is crucial: always set loading to false after the initial check is complete.
+            setLoading(false);
+        });
+
+        // Listen for subsequent auth state changes (e.g., login, logout).
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user) {
                 const profile = await fetchUserProfile(session.user.id, session.user.email);
@@ -98,7 +114,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             } else {
                 setCurrentUser(null);
             }
-            setLoading(false);
         });
 
         return () => {
