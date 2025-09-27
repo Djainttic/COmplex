@@ -66,7 +66,8 @@ const BungalowsPage: React.FC = () => {
             await updateBungalow({ ...selectedBungalow, ...bungalowData });
             addToast({ message: `Le bungalow ${bungalowData.name} a été mis à jour.`, type: 'success' });
         } else { // Adding
-            await addBungalow(bungalowData);
+            const { id, ...newBungalow } = bungalowData;
+            await addBungalow(newBungalow);
             addToast({ message: `Le bungalow ${bungalowData.name} a été ajouté.`, type: 'success' });
         }
         setFormModalOpen(false);

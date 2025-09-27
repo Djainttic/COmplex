@@ -83,7 +83,8 @@ const BillingPage: React.FC = () => {
             await updateInvoice(invoice);
             addToast({ message: `Facture #${invoice.id} mise à jour.`, type: 'success' });
         } else {
-            await addInvoice(invoice);
+            const { id, ...newInvoice } = invoice;
+            await addInvoice(newInvoice);
             addToast({ message: 'Nouvelle facture créée.', type: 'success' });
         }
         setFormModalOpen(false);

@@ -64,7 +64,8 @@ const ClientsPage: React.FC = () => {
             await updateClient({ ...selectedClient, ...clientData });
             addToast({ message: `Le client ${clientData.name} a été mis à jour.`, type: 'success' });
         } else { // Adding
-            await addClient(clientData);
+            const { id, ...newClient } = clientData;
+            await addClient(newClient);
             addToast({ message: `Le client ${clientData.name} a été ajouté.`, type: 'success' });
         }
         setFormModalOpen(false);

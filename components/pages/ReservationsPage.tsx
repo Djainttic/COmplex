@@ -65,7 +65,8 @@ const ReservationsPage: React.FC = () => {
             await updateReservation(res);
             addToast({ message: `Réservation #${res.id.slice(-5)} mise à jour.`, type: 'success' });
         } else { // Adding
-            await addReservation(res);
+            const { id, ...newRes } = res;
+            await addReservation(newRes);
             addToast({ message: 'Nouvelle réservation ajoutée avec succès.', type: 'success' });
         }
         setFormModalOpen(false);

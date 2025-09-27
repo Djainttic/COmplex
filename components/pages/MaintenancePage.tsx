@@ -75,7 +75,8 @@ const MaintenancePage: React.FC = () => {
             await updateMaintenanceRequest({ ...selectedRequest, ...requestData });
             addToast({ message: 'Demande de maintenance mise à jour.', type: 'success' });
         } else { // Adding
-            await addMaintenanceRequest(requestData);
+            const { id, ...newRequest } = requestData;
+            await addMaintenanceRequest(newRequest);
             addToast({ message: 'Nouvelle demande de maintenance ajoutée.', type: 'success' });
         }
         setFormModalOpen(false);
