@@ -141,8 +141,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         useCallback(async () => {
             setLoading(stateKey, true);
             const { data, error } = await supabase.from(tableName).select(columns);
-            if (error) handleError(error, `fetching ${tableName}`);
-            else setter(toCamelCase(data));
+            if (error) {
+                handleError(error, `fetching ${tableName}`);
+            } else {
+                setter(toCamelCase(data));
+            }
             setLoading(stateKey, false);
         }, [tableName, setter, stateKey, columns]);
 
@@ -154,28 +157,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const fetchCommunicationLogs = createFetcher('communication_logs', setCommunicationLogs, 'communicationLogs');
     const fetchLoyaltyLogs = createFetcher('loyalty_logs', setLoyaltyLogs, 'loyaltyLogs');
     
-    const createGenericAdder = <T extends { id?: string }>(tableName: string, fetcher: () => Promise<void>) => async (item: Partial<T>): Promise<boolean> => {
-        const { id, ...data } = item;
-        const { error } = await supabase.from(tableName).insert([toSnakeCase(data)]);
-        if (error) { handleError(error, `adding ${tableName}`); return false; }
-        await fetcher();
-        return true;
-    };
+    const createGenericAdder = <T extends { id?: string }>(tableName: string, fetcher: () => Promise<void>) => 
+        useCallback(async (item: Partial<T>): Promise<boolean> => {
+            const { id, ...data } = item;
+            const { error } = await supabase.from(tableName).insert([toSnakeCase(data)]);
+            if (error) { handleError(error, `adding ${tableName}`); return false; }
+            await fetcher();
+            return true;
+        }, [tableName, fetcher]);
 
-    const createGenericUpdater = <T extends { id: string }>(tableName: string, fetcher: () => Promise<void>) => async (item: T): Promise<boolean> => {
-        const { id, ...data } = item;
-        const { error } = await supabase.from(tableName).update(toSnakeCase(data)).eq('id', id);
-        if (error) { handleError(error, `updating ${tableName}`); return false; }
-        await fetcher();
-        return true;
-    };
+    const createGenericUpdater = <T extends { id: string }>(tableName: string, fetcher: () => Promise<void>) => 
+        useCallback(async (item: T): Promise<boolean> => {
+            const { id, ...data } = item;
+            const { error } = await supabase.from(tableName).update(toSnakeCase(data)).eq('id', id);
+            if (error) { handleError(error, `updating ${tableName}`); return false; }
+            await fetcher();
+            return true;
+        }, [tableName, fetcher]);
 
-    const createGenericDeleter = (tableName: string, fetcher: () => Promise<void>) => async (id: string): Promise<boolean> => {
-        const { error } = await supabase.from(tableName).delete().eq('id', id);
-        if (error) { handleError(error, `deleting ${tableName}`); return false; }
-        await fetcher();
-        return true;
-    };
+    const createGenericDeleter = (tableName: string, fetcher: () => Promise<void>) => 
+        useCallback(async (id: string): Promise<boolean> => {
+            const { error } = await supabase.from(tableName).delete().eq('id', id);
+            if (error) { handleError(error, `deleting ${tableName}`); return false; }
+            await fetcher();
+            return true;
+        }, [tableName, fetcher]);
 
     const addBungalow = createGenericAdder<Bungalow>('bungalows', fetchBungalows);
     const updateBungalow = createGenericUpdater<Bungalow>('bungalows', fetchBungalows);
