@@ -41,12 +41,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const navigate = useNavigate();
 
     useEffect(() => {
+        // This listener is the single source of truth for the user's session state,
+        // primarily for handling session persistence on app load/refresh.
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             if (session?.user) {
-                // In a real app, you'd fetch the user profile from your database.
-                // Here, we find the mock user by email.
                 const user = MOCK_USERS.find(u => u.email === session.user.email);
+                // If a user is found in our mock data, set them as current user.
+                // Otherwise, currentUser becomes null, and ProtectedRoute will redirect to /login.
                 setCurrentUser(user || null);
             } else {
                 setCurrentUser(null);
@@ -64,22 +66,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const login = async (email: string, pass: string) => {
         setLoading(true);
-        // Supabase handles the actual auth
-        const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+
+        // First, attempt to sign in with Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+
         if (error) {
             setLoading(false);
             return { success: false, error: "Email ou mot de passe incorrect." };
         }
         
-        // Find user from our mock data
-        const user = MOCK_USERS.find(u => u.email === email);
-        if (!user) {
-            await logout();
-            setLoading(false);
-            return { success: false, error: "Utilisateur non trouvé dans le système." };
+        // If Supabase login is successful, verify the user exists in our application's user list.
+        if (data.user) {
+            const userInMock = MOCK_USERS.find(u => u.email === data.user!.email);
+            if (!userInMock) {
+                // This is an inconsistent state: user is valid in Supabase but not in our app.
+                // We must sign them out and show an error.
+                await supabase.auth.signOut();
+                setLoading(false); // The signOut will trigger onAuthStateChange, but we set loading false here to be quick.
+                return { success: false, error: "Cet utilisateur n'est pas autorisé à accéder à cette application." };
+            }
+            // If the user is found, we set the state directly to avoid any race conditions
+            // with the onAuthStateChange listener. The listener will still fire but will result in the same state.
+            setCurrentUser(userInMock);
         }
         
-        setCurrentUser(user);
+        // On success, the onAuthStateChange listener will handle setting the currentUser and
+        // setting loading to false. We return success to the UI to allow it to navigate.
+        // The ProtectedRoute will show a loading spinner until the state is updated.
         setLoading(false);
         return { success: true };
     };
