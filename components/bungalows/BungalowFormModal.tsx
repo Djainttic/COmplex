@@ -25,7 +25,7 @@ const BungalowFormModal: React.FC<BungalowFormModalProps> = ({ isOpen, onClose, 
             status: BungalowStatus.Available,
             capacity: defaultType?.capacity || 2,
             pricePerNight: defaultType?.defaultPrice || 10000,
-            amenities: [] as string[], // Default to empty array (no amenities selected)
+            amenities: defaultType?.amenities || [], // Pre-populate amenities from default type
             imageUrl: '',
             description: '',
         };
@@ -59,7 +59,7 @@ const BungalowFormModal: React.FC<BungalowFormModalProps> = ({ isOpen, onClose, 
             type: selectedTypeName as BungalowType,
             capacity: selectedTypeData?.capacity || prev.capacity,
             pricePerNight: selectedTypeData?.defaultPrice || prev.pricePerNight,
-            // Keep amenities as they are when changing type, as per request
+            amenities: selectedTypeData?.amenities || [], // Update amenities based on selected type
         }));
     };
 

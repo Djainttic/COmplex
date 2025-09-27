@@ -18,7 +18,8 @@ const ALL_PERMISSIONS: Permission[] = [
   'settings:read', 'settings:write'
 ];
 
-const ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(p => !p.startsWith('users:') && !p.startsWith('settings:'));
+// FIX: This definition for Admin was too restrictive. An Admin should have access to Users and Settings.
+const ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS;
 const MANAGER_PERMISSIONS: Permission[] = [
     'bungalows:read', 'bungalows:update_status', 'reservations:read', 'reservations:write', 'clients:read', 'clients:write', 'billing:read',
     'loyalty:read', 'communication:read', 'maintenance:read', 'maintenance:write', 'reports:read'

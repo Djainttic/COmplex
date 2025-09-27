@@ -1,6 +1,7 @@
 // components/pages/LoyaltyPage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
-import { Client, LoyaltyLog } from '../../types';
+// FIX: Imported LoyaltyLogType to use the enum member instead of a string literal.
+import { Client, LoyaltyLog, LoyaltyLogType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
 import { useToasts } from '../../hooks/useToasts';
@@ -44,7 +45,8 @@ const LoyaltyPage: React.FC = () => {
             pointsChange,
             reason,
             timestamp: new Date().toISOString(),
-            type: 'Ajustement manuel',
+            // FIX: Used LoyaltyLogType enum member for type safety.
+            type: LoyaltyLogType.ManualAdjustment,
             adminUserId: currentUser?.id,
         });
 

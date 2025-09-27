@@ -1,6 +1,7 @@
 // components/pages/BillingPage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
-import { Invoice, Reservation, InvoiceStatus, Bungalow, Client, InvoiceItem } from '../../types';
+// FIX: Added ReservationStatus to fix a type error when filtering reservations.
+import { Invoice, Reservation, InvoiceStatus, Bungalow, Client, InvoiceItem, ReservationStatus } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
 import { useToasts } from '../../hooks/useToasts';
