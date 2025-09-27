@@ -17,7 +17,7 @@ interface AuthContextType {
     login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
     fetchUsers: () => Promise<void>;
-    addUser: (userData: Partial<User>) => Promise<{ success: boolean; user?: User; tempPassword?: string; error?: string }>;
+    addUser: (userData: Partial<User>) => Promise<{ success: boolean; user?: Partial<User>; tempPassword?: string; error?: string }>;
     updateUser: (userData: Partial<User>) => Promise<void>;
     deleteUser: (userId: string) => Promise<void>;
     updateSettings: (newSettings: Settings) => Promise<void>;
@@ -146,16 +146,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { id, permissions, ...updateData } = userData;
         const snakeCaseData = toSnakeCase(updateData);
         
-        // Supabase auth details like email cannot be updated from the `profiles` table.
         delete snakeCaseData.email; 
 
         const { error } = await supabase.from('profiles').update(snakeCaseData).eq('id', id);
         if (error) {
             console.error("Error updating user:", error);
         } else {
-            // Re-fetch all users to update the list
             await fetchUsers();
-            // If the updated user is the current user, refresh their profile
             if (currentUser?.id === id && currentUser.email) {
                 const updatedProfile = await fetchUserProfile(id, currentUser.email);
                 setCurrentUser(updatedProfile);
@@ -163,33 +160,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
     
-    // NOTE: Creating and deleting users requires Supabase Admin privileges and should be
-    // handled via secure Edge Functions. For this project, we'll simulate this locally.
     const addUser = async (userData: Partial<User>) => {
-        console.warn("addUser is mocked and does not affect the database.");
-        await sleep(500);
-        const tempPassword = 'password123';
+        const tempPassword = Math.random().toString(36).slice(-8);
         
-        const newUser: User = {
-            id: `user-${Date.now()}`,
-            name: userData.name || '',
-            email: userData.email || '',
-            role: userData.role || UserRole.Employee,
-            status: userData.status || UserStatus.PendingActivation,
-            avatarUrl: 'https://i.ibb.co/7j1g9qg/default-avatar.png',
-            lastLogin: '',
-            isOnline: false,
-            permissions: MOCK_ROLES.find(r => r.roleName === userData.role)?.permissions ? Object.keys(MOCK_ROLES.find(r => r.roleName === userData.role)!.permissions).filter(p => MOCK_ROLES.find(r => r.roleName === userData.role)!.permissions[p as Permission]) as Permission[] : [],
-            ...userData,
-        };
-        setAllUsers(prev => [...prev, newUser]);
-        return { success: true, user: newUser, tempPassword };
+        const { error } = await supabase.rpc('create_new_user', {
+            p_email: userData.email,
+            p_password: tempPassword,
+            p_name: userData.name,
+            p_role: userData.role,
+            p_status: userData.status,
+            p_phone: userData.phone,
+            p_avatar_url: userData.avatarUrl
+        });
+
+        if (error) {
+            console.error("Error creating user via RPC:", error);
+            return { success: false, error: "Impossible de créer l'utilisateur. L'e-mail existe peut-être déjà." };
+        }
+
+        await fetchUsers();
+        return { success: true, user: userData, tempPassword };
     };
 
     const deleteUser = async (userId: string) => {
-        console.warn("deleteUser is mocked and does not affect the database.");
-        await sleep(500);
-        setAllUsers(prev => prev.filter(u => u.id !== userId));
+        const { error } = await supabase.rpc('delete_user_by_id', {
+            user_id: userId
+        });
+        
+        if (error) {
+            console.error("Error deleting user via RPC:", error);
+        } else {
+            await fetchUsers();
+        }
     };
 
 
@@ -216,7 +218,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             redirectTo: `${window.location.origin}/reset-password`,
         });
         if (error) {
-            // For security, don't reveal if the user exists. Log the error for devs.
             console.error("Password reset error:", error.message);
         }
         return { success: true };
