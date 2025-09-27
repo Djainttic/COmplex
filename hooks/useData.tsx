@@ -133,36 +133,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const fetchDashboardData = useCallback(async () => {
         setLoading('dashboard', true);
-        const today = new Date().toISOString().split('T')[0];
-        const tomorrow = new Date(Date.now() + 864e5).toISOString().split('T')[0];
-
         try {
-            // 1. Fetch Stats
-            const { count: checkInsToday, error: checkInError } = await supabase.from('reservations').select('id', { count: 'exact', head: true }).eq('start_date', today);
-            const { count: checkOutsToday, error: checkOutError } = await supabase.from('reservations').select('id', { count: 'exact', head: true }).eq('end_date', today);
-            const { count: totalBungalows, error: totalBError } = await supabase.from('bungalows').select('id', { count: 'exact', head: true });
-            const { count: occupiedCount, error: occupiedError } = await supabase.from('bungalows').select('id', { count: 'exact', head: true }).eq('status', 'Occupé');
-            const { count: pendingMaintenance, error: maintenanceError } = await supabase.from('maintenance_requests').select('id', { count: 'exact', head: true }).in('status', ['En attente', 'En cours']);
-            
-            if (checkInError || checkOutError || totalBError || occupiedError || maintenanceError) throw new Error('Failed to fetch stats');
+            const { data, error } = await supabase.rpc('get_dashboard_data');
 
-            const occupancyRate = totalBungalows > 0 ? (occupiedCount / totalBungalows) * 100 : 0;
-            setDashboardStats({ checkInsToday, checkOutsToday, occupancyRate, pendingMaintenance });
-            
-            // 2. Fetch data for charts and feeds
-            const { data: bungalowStatuses, error: bungalowStatusError } = await supabase.from('bungalows').select('id, status');
-            const { data: upcomingReservations, error: upcomingResError } = await supabase.from('reservations').select('id, start_date, end_date, client_id, bungalow_id').or(`start_date.eq.${today},start_date.eq.${tomorrow},end_date.eq.${today},end_date.eq.${tomorrow}`);
-            const { data: recentReservations, error: recentResError } = await supabase.from('reservations').select('id, start_date, client_id, bungalow_id').order('created_at', { ascending: false }).limit(5);
-            const { data: recentMaintenance, error: recentMaintError } = await supabase.from('maintenance_requests').select('id, created_date, bungalow_id, description').order('created_date', { ascending: false }).limit(5);
+            if (error) {
+                throw error;
+            }
 
-            if (bungalowStatusError || upcomingResError || recentResError || recentMaintError) throw new Error('Failed to fetch dashboard component data');
+            if (data) {
+                setDashboardStats(data.stats);
+                setDashboardBungalows(data.bungalowStatuses);
+                
+                // Combine and deduplicate reservations for the activity feeds
+                const allReservations = [...data.upcomingReservations, ...data.recentReservations];
+                const uniqueReservations = Array.from(new Map(allReservations.map(item => [item.id, item])).values());
+                setDashboardReservations(uniqueReservations);
 
-            setDashboardBungalows(toCamelCase(bungalowStatuses));
-            setDashboardReservations(toCamelCase([...upcomingReservations, ...recentReservations]));
-            setDashboardMaintenanceRequests(toCamelCase(recentMaintenance));
-
+                setDashboardMaintenanceRequests(data.recentMaintenance);
+            }
         } catch (e: any) {
-            handleError(e, 'fetching dashboard data');
+            handleError(e, 'fetching dashboard data via RPC');
         } finally {
             setLoading('dashboard', false);
         }
