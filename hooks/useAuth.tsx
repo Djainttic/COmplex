@@ -1,11 +1,8 @@
 // hooks/useAuth.tsx
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-// FIX: Added UserStatus to the import from ../types to resolve a missing type error.
 import { User, Settings, Permission, RoleSetting, UserRole, UserStatus } from '../types';
 import { MOCK_USERS, MOCK_SETTINGS, MOCK_ROLES } from '../lib/mockData';
-import { supabase } from '../lib/supabaseClient';
-import { Session } from '@supabase/supabase-js';
 
 // Helper to simulate async operations
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -16,23 +13,22 @@ interface AuthContextType {
     settings: Settings;
     loading: boolean;
     loadingUsers: boolean;
-    session: Session | null;
     login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => void;
     fetchUsers: () => Promise<void>;
-    addUser: (userData: Partial<User>, password?: string) => Promise<{ success: boolean; user?: User; tempPassword?: string; error?: string }>;
+    addUser: (userData: Partial<User>) => Promise<{ success: boolean; user?: User; tempPassword?: string; error?: string }>;
     updateUser: (userData: Partial<User>) => Promise<void>;
     deleteUser: (userId: string) => Promise<void>;
     updateSettings: (newSettings: Settings) => Promise<void>;
     hasPermission: (permission: Permission | Permission[]) => boolean;
-    sendPasswordResetEmail: (email: string) => Promise<{ success: boolean, error?: string }>;
-    updatePassword: (newPassword: string) => Promise<{ success: boolean, error?: string }>;
+    // FIX: Add missing methods for password reset functionality.
+    sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
+    updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [session, setSession] = useState<Session | null>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [settings, setSettings] = useState<Settings>(MOCK_SETTINGS);
@@ -41,64 +37,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const navigate = useNavigate();
 
     useEffect(() => {
-        // This listener is the single source of truth for the user's session state,
-        // primarily for handling session persistence on app load/refresh.
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-            if (session?.user) {
-                const user = MOCK_USERS.find(u => u.email === session.user.email);
-                // If a user is found in our mock data, set them as current user.
-                // Otherwise, currentUser becomes null, and ProtectedRoute will redirect to /login.
-                setCurrentUser(user || null);
-            } else {
-                setCurrentUser(null);
-            }
-            setLoading(false);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-    
-    // Simulate initial data load
-    useEffect(() => {
+        // On initial app load, we are not logged in.
+        setLoading(false);
         fetchUsers();
     }, []);
 
     const login = async (email: string, pass: string) => {
         setLoading(true);
-
-        // First, attempt to sign in with Supabase
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-
-        if (error) {
+        await sleep(500); // Simulate network latency
+        
+        // Find user in our mock/runtime user list
+        const user = allUsers.find(u => u.email === email);
+        
+        // For this mock app, we'll use a universal password.
+        if (user && pass === 'password123') {
+            setCurrentUser(user);
+            setLoading(false);
+            return { success: true };
+        } else {
             setLoading(false);
             return { success: false, error: "Email ou mot de passe incorrect." };
         }
-        
-        // If Supabase login is successful, verify the user exists in our application's user list.
-        if (data.user) {
-            const userInMock = MOCK_USERS.find(u => u.email === data.user!.email);
-            if (!userInMock) {
-                // This is an inconsistent state: user is valid in Supabase but not in our app.
-                // We must sign them out and show an error.
-                await supabase.auth.signOut();
-                setLoading(false); // The signOut will trigger onAuthStateChange, but we set loading false here to be quick.
-                return { success: false, error: "Cet utilisateur n'est pas autorisé à accéder à cette application." };
-            }
-            // If the user is found, we set the state directly to avoid any race conditions
-            // with the onAuthStateChange listener. The listener will still fire but will result in the same state.
-            setCurrentUser(userInMock);
-        }
-        
-        // On success, the onAuthStateChange listener will handle setting the currentUser and
-        // setting loading to false. We return success to the UI to allow it to navigate.
-        // The ProtectedRoute will show a loading spinner until the state is updated.
-        setLoading(false);
-        return { success: true };
     };
 
-    const logout = async () => {
-        await supabase.auth.signOut();
+    const logout = () => {
         setCurrentUser(null);
         navigate('/login');
     };
@@ -110,11 +72,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setLoadingUsers(false);
     }, []);
 
-    const addUser = async (userData: Partial<User>, password?: string) => {
+    const addUser = async (userData: Partial<User>) => {
         await sleep(500);
-        // In real app, you'd call Supabase to create an auth user, then create a profile in your DB.
-        const tempPassword = password || Math.random().toString(36).slice(-8);
-        console.log(`Creating user ${userData.email} with password ${tempPassword}`);
+        const tempPassword = 'password123'; // Standard password for all users
         
         const newUser: User = {
             id: `user-${Date.now()}`,
@@ -154,6 +114,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const hasPermission = useCallback((permission: Permission | Permission[]): boolean => {
         if (!currentUser) return false;
+        if (currentUser.role === UserRole.SuperAdmin) return true; // SuperAdmin has all permissions
         const userPermissions = new Set(currentUser.permissions);
 
         if (Array.isArray(permission)) {
@@ -162,26 +123,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return userPermissions.has(permission);
     }, [currentUser]);
 
-    const sendPasswordResetEmail = async (email: string) => {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (error) {
-            console.error("Password reset error:", error);
-            // Don't reveal if email exists
-            return { success: true }; 
+    // FIX: Implement mock password reset email function.
+    const sendPasswordResetEmail = async (email: string): Promise<{ success: boolean; error?: string }> => {
+        await sleep(500); // Simulate network latency
+        // In a real app, this would trigger a backend service to send an email.
+        // For this mock app, we'll just check if the user exists and return success.
+        const userExists = allUsers.some(u => u.email === email);
+        if (userExists) {
+            console.log(`Password reset link sent to ${email} (simulation)`);
+        } else {
+            // For security reasons, we don't reveal if an email exists or not.
+            console.log(`Password reset requested for non-existent email: ${email} (simulation)`);
         }
+        // Always return success to the UI.
         return { success: true };
     };
 
-    const updatePassword = async (newPassword: string) => {
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
-        if (error) {
-            return { success: false, error: "Impossible de mettre à jour le mot de passe." };
+    // FIX: Implement mock password update function.
+    const updatePassword = async (password: string): Promise<{ success: boolean; error?: string }> => {
+        await sleep(500); // Simulate network latency
+        if (!currentUser) {
+            // This case should be handled by route protection, but as a safeguard:
+            const isResetting = window.location.pathname.includes('reset-password');
+            if (!isResetting) {
+                 return { success: false, error: "No user is currently logged in." };
+            }
         }
+        // In a real app, this would be an API call to update the user's password.
+        // Since we don't handle real passwords, we'll just log it and return success.
+        console.log(`Password for user updated to "${password}" (simulation)`);
+        // This won't affect the mock login which uses a hardcoded password.
         return { success: true };
     };
-
 
     const value = {
         currentUser,
@@ -189,7 +162,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         settings,
         loading,
         loadingUsers,
-        session,
         login,
         logout,
         fetchUsers,
@@ -199,7 +171,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         updateSettings,
         hasPermission,
         sendPasswordResetEmail,
-        updatePassword
+        updatePassword,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

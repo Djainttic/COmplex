@@ -53,12 +53,12 @@ const UsersPage: React.FC = () => {
         }
     };
 
-    const handleSaveUser = async (userData: Partial<User>, password?: string) => {
+    const handleSaveUser = async (userData: Partial<User>) => {
         if (selectedUser) { // Editing existing user
             await updateUser({ ...selectedUser, ...userData });
             addToast({ message: `L'utilisateur ${userData.name} a été mis à jour.`, type: 'success' });
         } else { // Adding new user
-            const result = await addUser(userData, password);
+            const result = await addUser(userData);
             if (result.success && result.user && result.tempPassword) {
                 setNewUserCredentials({ email: result.user.email!, temporaryPassword: result.tempPassword });
                 setSuccessModalOpen(true);

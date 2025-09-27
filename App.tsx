@@ -22,7 +22,6 @@ import UsersPage from './components/pages/UsersPage';
 import SettingsPage from './components/pages/SettingsPage';
 import ProfilePage from './components/pages/ProfilePage';
 import LoginPage from './components/pages/LoginPage';
-import ResetPasswordPage from './components/pages/ResetPasswordPage';
 import ToastContainer from './components/ui/ToastContainer';
 
 const AppLayout: React.FC = () => {
@@ -65,7 +64,6 @@ function App() {
                         <ToastContainer />
                         <Routes>
                             <Route path="/login" element={<LoginPage />} />
-                            <Route path="/reset-password" element={<ResetPasswordPage />} />
                             <Route element={<ProtectedRoute />}>
                                 <Route path="/" element={<DashboardPage />} />
                                 <Route path="/bungalows" element={<BungalowsPage />} />

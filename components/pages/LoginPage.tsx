@@ -3,14 +3,12 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import Button from '../ui/Button';
-import ForgotPasswordModal from '../users/ForgotPasswordModal';
 
 const LoginPage: React.FC = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState('super@syphax.app');
+    const [password, setPassword] = useState('password123');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
     
     const { login, settings } = useAuth();
     const navigate = useNavigate();
@@ -31,7 +29,6 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <>
         <div 
             className="min-h-screen bg-cover bg-center flex items-center justify-center p-4" 
             style={{ backgroundImage: `url(${settings.general.loginImageUrl})` }}
@@ -78,16 +75,8 @@ const LoginPage: React.FC = () => {
 
                     {error && <p className="text-sm text-center text-red-600 dark:text-red-400">{error}</p>}
                     
-                    <div className="flex items-center justify-end">
-                        <div className="text-sm">
-                            <button
-                                type="button"
-                                onClick={() => setPasswordModalOpen(true)}
-                                className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
-                            >
-                                Mot de passe oublié ?
-                            </button>
-                        </div>
+                     <div className="text-xs text-center text-gray-500 dark:text-gray-400">
+                        Utilisez n'importe quel compte de démo (ex: super@syphax.app) avec le mot de passe : <strong className="font-mono">password123</strong>
                     </div>
 
                     <div>
@@ -98,8 +87,6 @@ const LoginPage: React.FC = () => {
                 </form>
             </div>
         </div>
-        <ForgotPasswordModal isOpen={isPasswordModalOpen} onClose={() => setPasswordModalOpen(false)} />
-        </>
     );
 };
 

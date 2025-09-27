@@ -6,7 +6,7 @@ import AvatarUploadModal from '../users/AvatarUploadModal';
 import { useToasts } from '../../hooks/useToasts';
 
 const ProfilePage: React.FC = () => {
-    const { currentUser, updateUser, updatePassword, settings } = useAuth();
+    const { currentUser, updateUser } = useAuth();
     const { addToast } = useToasts();
     
     const [isAvatarModalOpen, setAvatarModalOpen] = useState(false);
@@ -15,11 +15,6 @@ const ProfilePage: React.FC = () => {
     const [name, setName] = useState(currentUser?.name || '');
     const [email, setEmail] = useState(currentUser?.email || '');
     const [phone, setPhone] = useState(currentUser?.phone || '');
-    
-    // State for password change form
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [passwordError, setPasswordError] = useState('');
 
     if (!currentUser) {
         return <div>Chargement du profil...</div>;
@@ -35,29 +30,6 @@ const ProfilePage: React.FC = () => {
         await updateUser({ id: currentUser.id, avatarUrl: newUrl });
         addToast({ message: 'Photo de profil mise à jour.', type: 'success' });
         setAvatarModalOpen(false);
-    };
-    
-    const handlePasswordUpdate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setPasswordError('');
-
-        if (newPassword !== confirmPassword) {
-            setPasswordError('Les mots de passe ne correspondent pas.');
-            return;
-        }
-        if (newPassword.length < settings.security.passwordPolicy.minLength) {
-            setPasswordError(`Le mot de passe doit contenir au moins ${settings.security.passwordPolicy.minLength} caractères.`);
-            return;
-        }
-        
-        const result = await updatePassword(newPassword);
-        if (result.success) {
-            addToast({ message: 'Mot de passe mis à jour avec succès.', type: 'success' });
-            setNewPassword('');
-            setConfirmPassword('');
-        } else {
-            setPasswordError(result.error || 'Une erreur est survenue.');
-        }
     };
 
     const commonInputStyle = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 sm:text-sm";
@@ -86,7 +58,7 @@ const ProfilePage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <div className="mt-8">
                     {/* Profile Information Form */}
                     <form onSubmit={handleProfileUpdate} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Informations du profil</h3>
@@ -106,25 +78,6 @@ const ProfilePage: React.FC = () => {
                         </div>
                         <div className="mt-6 text-right">
                             <Button type="submit">Enregistrer</Button>
-                        </div>
-                    </form>
-
-                    {/* Change Password Form */}
-                    <form onSubmit={handlePasswordUpdate} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Changer le mot de passe</h3>
-                        <div className="mt-6 space-y-4">
-                            <div>
-                                <label htmlFor="new_password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nouveau mot de passe</label>
-                                <input type="password" id="new_password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required className={commonInputStyle} />
-                            </div>
-                             <div>
-                                <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirmer le mot de passe</label>
-                                <input type="password" id="confirm_password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className={commonInputStyle} />
-                            </div>
-                            {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-                        </div>
-                         <div className="mt-6 text-right">
-                            <Button type="submit">Mettre à jour</Button>
                         </div>
                     </form>
                 </div>
