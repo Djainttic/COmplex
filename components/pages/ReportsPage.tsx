@@ -1,8 +1,8 @@
 // components/pages/ReportsPage.tsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../../hooks/useData';
 import { useAuth } from '../../hooks/useAuth';
-import { BungalowStatus, BungalowType, InvoiceStatus } from '../../types';
+import { BungalowType, InvoiceStatus } from '../../types';
 import ReportCard from '../reports/ReportCard';
 import ReportFilters from '../reports/ReportFilters';
 import MonthlyRevenueChart from '../reports/MonthlyRevenueChart';
@@ -11,15 +11,9 @@ import RevenueByBungalowTypeChart from '../reports/RevenueByBungalowTypeChart';
 type Preset = '7d' | '30d' | 'month' | 'custom';
 
 const ReportsPage: React.FC = () => {
-    const { invoices, reservations, bungalows, fetchInvoices, fetchReservations, fetchBungalows, isLoading } = useData();
+    const { invoices, reservations, bungalows } = useData();
     const { settings } = useAuth();
     
-    useEffect(() => {
-        fetchInvoices();
-        fetchReservations();
-        fetchBungalows();
-    }, [fetchInvoices, fetchReservations, fetchBungalows]);
-
     const getInitialDateRange = () => {
         const end = new Date();
         const start = new Date();

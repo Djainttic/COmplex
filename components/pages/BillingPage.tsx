@@ -1,5 +1,5 @@
 // components/pages/BillingPage.tsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 // FIX: Added ReservationStatus to fix a type error when filtering reservations.
 import { Invoice, Reservation, InvoiceStatus, Bungalow, Client, InvoiceItem, ReservationStatus } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
@@ -17,17 +17,9 @@ const BillingPage: React.FC = () => {
     const { hasPermission, settings } = useAuth();
     const {
         invoices, reservations, clients, bungalows,
-        fetchInvoices, fetchReservations, fetchClients, fetchBungalows,
         addInvoice, updateInvoice, isLoading
     } = useData();
     const { addToast } = useToasts();
-
-    useEffect(() => {
-        fetchInvoices();
-        fetchReservations();
-        fetchClients();
-        fetchBungalows();
-    }, [fetchInvoices, fetchReservations, fetchClients, fetchBungalows]);
 
     const [filters, setFilters] = useState({ searchTerm: '', status: 'all', startDate: '', endDate: '' });
     const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);

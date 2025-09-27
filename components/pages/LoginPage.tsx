@@ -5,8 +5,9 @@ import { useAuth } from '../../hooks/useAuth';
 import Button from '../ui/Button';
 
 const LoginPage: React.FC = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    // Pre-fill with test credentials for faster login during development
+    const [email, setEmail] = useState('superadmin@syphax.com');
+    const [password, setPassword] = useState('password123');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
@@ -15,11 +16,10 @@ const LoginPage: React.FC = () => {
     const location = useLocation();
     const from = location.state?.from?.pathname || '/';
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleLogin = async (loginEmail: string, loginPass: string) => {
         setError('');
         setIsLoading(true);
-        const result = await login(email, password);
+        const result = await login(loginEmail, loginPass);
         setIsLoading(false);
         if (result.success) {
             navigate(from, { replace: true });
@@ -27,6 +27,21 @@ const LoginPage: React.FC = () => {
             setError(result.error || 'Une erreur est survenue.');
         }
     };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        handleLogin(email, password);
+    };
+
+    const handleQuickLogin = () => {
+        // NOTE: Ensure these credentials exist in your Supabase Auth users.
+        const quickLoginEmail = 'superadmin@syphax.com';
+        const quickLoginPass = 'password123';
+        setEmail(quickLoginEmail);
+        setPassword(quickLoginPass);
+        handleLogin(quickLoginEmail, quickLoginPass);
+    };
+
 
     return (
         <div 
@@ -75,9 +90,12 @@ const LoginPage: React.FC = () => {
 
                     {error && <p className="text-sm text-center text-red-600 dark:text-red-400">{error}</p>}
 
-                    <div>
+                    <div className="space-y-3">
                         <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                             {isLoading ? 'Connexion...' : 'Se connecter'}
+                        </Button>
+                         <Button type="button" variant="secondary" className="w-full" size="lg" disabled={isLoading} onClick={handleQuickLogin}>
+                            Accès Direct (Test)
                         </Button>
                     </div>
                 </form>

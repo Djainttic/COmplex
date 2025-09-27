@@ -1,5 +1,5 @@
 // components/pages/ReservationsPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Reservation } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
@@ -16,7 +16,6 @@ const ReservationsPage: React.FC = () => {
     const { hasPermission } = useAuth();
     const { 
         reservations, bungalows, clients,
-        fetchReservations, fetchBungalows, fetchClients,
         addReservation, updateReservation, isLoading 
     } = useData();
     const { addToast } = useToasts();
@@ -26,12 +25,6 @@ const ReservationsPage: React.FC = () => {
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
     const [selectedReservation, setSelectedReservation] = useState<Partial<Reservation> | null>(null);
-
-    useEffect(() => {
-        fetchReservations();
-        fetchBungalows();
-        fetchClients();
-    }, [fetchReservations, fetchBungalows, fetchClients]);
     
     const canWrite = hasPermission('reservations:write');
 

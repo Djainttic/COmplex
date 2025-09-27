@@ -11,17 +11,16 @@ const CommunicationPage: React.FC = () => {
     const { currentUser, allUsers, fetchUsers, hasPermission, loadingUsers } = useAuth();
     const { 
         communicationLogs, clients, 
-        fetchCommunicationLogs, fetchClients, addCommunicationLog,
+        addCommunicationLog,
         isLoading: isDataLoading
     } = useData();
 
     const [isFormModalOpen, setFormModalOpen] = useState(false);
 
     useEffect(() => {
-        fetchCommunicationLogs();
-        fetchClients();
+        // Users are still fetched here as they belong to AuthContext
         fetchUsers();
-    }, [fetchCommunicationLogs, fetchClients, fetchUsers]);
+    }, [fetchUsers]);
 
     const handleSaveCommunication = async (logData: Omit<CommunicationLog, 'id' | 'sentDate' | 'sentBy'>) => {
         if (currentUser) {

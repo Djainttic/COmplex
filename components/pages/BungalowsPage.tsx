@@ -1,5 +1,5 @@
 // components/pages/BungalowsPage.tsx
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Bungalow } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
@@ -12,17 +12,13 @@ import ConfirmationModal from '../ui/ConfirmationModal';
 
 const BungalowsPage: React.FC = () => {
     const { hasPermission } = useAuth();
-    const { bungalows, fetchBungalows, addBungalow, updateBungalow, deleteBungalow, isLoading } = useData();
+    const { bungalows, addBungalow, updateBungalow, deleteBungalow, isLoading } = useData();
     const { addToast } = useToasts();
     
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
     const [selectedBungalow, setSelectedBungalow] = useState<Bungalow | null>(null);
     const [filters, setFilters] = useState({ status: '', type: '', capacity: 0 });
-
-    useEffect(() => {
-        fetchBungalows();
-    }, [fetchBungalows]);
 
     const filteredBungalows = useMemo(() => {
         return bungalows.filter(b => 

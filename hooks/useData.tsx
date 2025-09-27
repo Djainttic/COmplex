@@ -1,6 +1,7 @@
 // hooks/useData.tsx
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from './useAuth'; // Import useAuth to listen to user changes
 import {
     Bungalow, Reservation, Client, MaintenanceRequest, Invoice, CommunicationLog, LoyaltyLog
 } from '../types';
@@ -67,6 +68,7 @@ interface DataContextType {
     dashboardMaintenanceRequests: MaintenanceRequest[];
 
     fetchDashboardData: () => Promise<void>;
+    fetchAllInitialData: () => Promise<void>; // Expose for potential manual refresh
 
     fetchBungalows: () => Promise<void>;
     addBungalow: (bungalow: Partial<Bungalow>) => Promise<boolean>;
@@ -101,6 +103,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { currentUser } = useAuth();
     const [bungalows, setBungalows] = useState<Bungalow[]>([]);
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -157,6 +160,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const fetchCommunicationLogs = createFetcher('communication_logs', setCommunicationLogs, 'communicationLogs');
     const fetchLoyaltyLogs = createFetcher('loyalty_logs', setLoyaltyLogs, 'loyaltyLogs');
     
+    const fetchAllInitialData = useCallback(async () => {
+        await Promise.all([
+            fetchBungalows(),
+            fetchReservations(),
+            fetchClients(),
+            fetchMaintenanceRequests(),
+            fetchInvoices(),
+            fetchCommunicationLogs(),
+            fetchLoyaltyLogs(),
+        ]);
+    }, [fetchBungalows, fetchReservations, fetchClients, fetchMaintenanceRequests, fetchInvoices, fetchCommunicationLogs, fetchLoyaltyLogs]);
+    
+    useEffect(() => {
+        if (currentUser) {
+            fetchAllInitialData();
+        } else {
+            // Clear all data on logout to prevent showing stale data
+            setBungalows([]);
+            setReservations([]);
+            setClients([]);
+            setMaintenanceRequests([]);
+            setInvoices([]);
+            setCommunicationLogs([]);
+            setLoyaltyLogs([]);
+        }
+    }, [currentUser, fetchAllInitialData]);
+
     const createGenericAdder = <T extends { id?: string }>(tableName: string, fetcher: () => Promise<void>) => 
         useCallback(async (item: Partial<T>): Promise<boolean> => {
             const { id, ...data } = item;
@@ -164,7 +194,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (error) { handleError(error, `adding ${tableName}`); return false; }
             await fetcher();
             return true;
-        }, [tableName, fetcher]);
+        }, [tableName]);
 
     const createGenericUpdater = <T extends { id: string }>(tableName: string, fetcher: () => Promise<void>) => 
         useCallback(async (item: T): Promise<boolean> => {
@@ -173,7 +203,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (error) { handleError(error, `updating ${tableName}`); return false; }
             await fetcher();
             return true;
-        }, [tableName, fetcher]);
+        }, [tableName]);
 
     const createGenericDeleter = (tableName: string, fetcher: () => Promise<void>) => 
         useCallback(async (id: string): Promise<boolean> => {
@@ -181,7 +211,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (error) { handleError(error, `deleting ${tableName}`); return false; }
             await fetcher();
             return true;
-        }, [tableName, fetcher]);
+        }, [tableName]);
 
     const addBungalow = createGenericAdder<Bungalow>('bungalows', fetchBungalows);
     const updateBungalow = createGenericUpdater<Bungalow>('bungalows', fetchBungalows);
@@ -208,6 +238,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         bungalows, reservations, clients, maintenanceRequests, invoices, communicationLogs, loyaltyLogs, isLoading,
         dashboardStats, dashboardBungalows, dashboardReservations, dashboardMaintenanceRequests,
         fetchDashboardData,
+        fetchAllInitialData,
         fetchBungalows, addBungalow, updateBungalow, deleteBungalow,
         fetchReservations, addReservation, updateReservation,
         fetchClients, addClient, updateClient, deleteClient,

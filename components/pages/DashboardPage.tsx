@@ -23,8 +23,7 @@ const PageLoader: React.FC = () => (
 const DashboardPage: React.FC = () => {
     const { currentUser, allUsers, fetchUsers, loadingUsers } = useAuth();
     const { 
-        bungalows, clients, // Keep full data for modals
-        fetchBungalows, fetchClients, // Keep fetchers for modals
+        bungalows, clients, // Full data is now pre-fetched by DataProvider
         dashboardStats, dashboardBungalows, dashboardReservations, dashboardMaintenanceRequests,
         fetchDashboardData,
         addReservation, updateReservation, addClient, updateClient,
@@ -34,12 +33,9 @@ const DashboardPage: React.FC = () => {
     useEffect(() => {
         // Fetch optimized data for dashboard display
         fetchDashboardData();
-        
-        // Fetch full data needed for modals in the background
-        fetchBungalows();
-        fetchClients();
+        // Users are managed by AuthContext, so we fetch them here
         fetchUsers();
-    }, [fetchDashboardData, fetchBungalows, fetchClients, fetchUsers]);
+    }, [fetchDashboardData, fetchUsers]);
 
     const [isReservationModalOpen, setReservationModalOpen] = useState(false);
     const [isClientModalOpen, setClientModalOpen] = useState(false);

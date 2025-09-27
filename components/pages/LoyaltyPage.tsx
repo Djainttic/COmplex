@@ -14,7 +14,6 @@ const LoyaltyPage: React.FC = () => {
     const { settings, hasPermission, allUsers, fetchUsers, loadingUsers, currentUser } = useAuth();
     const { 
         clients, loyaltyLogs,
-        fetchClients, fetchLoyaltyLogs,
         updateClient, addLoyaltyLog,
         isLoading: isDataLoading
     } = useData();
@@ -24,10 +23,9 @@ const LoyaltyPage: React.FC = () => {
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
     useEffect(() => {
-        fetchClients();
-        fetchLoyaltyLogs();
+        // Users are still fetched here as they belong to AuthContext
         fetchUsers();
-    }, [fetchClients, fetchLoyaltyLogs, fetchUsers]);
+    }, [fetchUsers]);
 
     const canWrite = hasPermission('loyalty:write');
 

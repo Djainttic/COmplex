@@ -1,5 +1,5 @@
 // components/pages/ClientsPage.tsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Client } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
@@ -11,17 +11,13 @@ import ConfirmationModal from '../ui/ConfirmationModal';
 
 const ClientsPage: React.FC = () => {
     const { hasPermission } = useAuth();
-    const { clients, fetchClients, addClient, updateClient, deleteClient, isLoading } = useData();
+    const { clients, addClient, updateClient, deleteClient, isLoading } = useData();
     const { addToast } = useToasts();
     
     const [isFormModalOpen, setFormModalOpen] = useState(false);
     const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-
-    useEffect(() => {
-        fetchClients();
-    }, [fetchClients]);
 
     const filteredClients = useMemo(() => {
         return clients.filter(client =>

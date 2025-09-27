@@ -14,7 +14,6 @@ const MaintenancePage: React.FC = () => {
     const { currentUser, allUsers, fetchUsers, hasPermission, loadingUsers } = useAuth();
     const { 
         maintenanceRequests, bungalows, 
-        fetchMaintenanceRequests, fetchBungalows,
         addMaintenanceRequest, updateMaintenanceRequest, deleteMaintenanceRequest,
         isLoading: isDataLoading
     } = useData();
@@ -26,10 +25,9 @@ const MaintenancePage: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     
     useEffect(() => {
-        fetchMaintenanceRequests();
-        fetchBungalows();
+        // Users are still fetched here as they belong to AuthContext
         fetchUsers();
-    }, [fetchMaintenanceRequests, fetchBungalows, fetchUsers]);
+    }, [fetchUsers]);
 
     const bungalowMap = useMemo(() => new Map(bungalows.map(b => [b.id, b.name])), [bungalows]);
     const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u.name])), [allUsers]);
