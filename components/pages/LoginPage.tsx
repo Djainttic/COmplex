@@ -5,8 +5,8 @@ import { useAuth } from '../../hooks/useAuth';
 import Button from '../ui/Button';
 
 const LoginPage: React.FC = () => {
-    const [email, setEmail] = useState('super@syphax.app');
-    const [password, setPassword] = useState('password123');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
@@ -74,10 +74,6 @@ const LoginPage: React.FC = () => {
                     </div>
 
                     {error && <p className="text-sm text-center text-red-600 dark:text-red-400">{error}</p>}
-                    
-                     <div className="text-xs text-center text-gray-500 dark:text-gray-400">
-                        Utilisez n'importe quel compte de démo (ex: super@syphax.app) avec le mot de passe : <strong className="font-mono">password123</strong>
-                    </div>
 
                     <div>
                         <Button type="submit" className="w-full" size="lg" disabled={isLoading}>

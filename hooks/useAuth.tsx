@@ -1,10 +1,11 @@
 // hooks/useAuth.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Settings, Permission, RoleSetting, UserRole, UserStatus } from '../types';
-import { MOCK_USERS, MOCK_SETTINGS, MOCK_ROLES } from '../lib/mockData';
+import { User, Settings, Permission, UserRole, UserStatus } from '../types';
+import { supabase } from '../lib/supabaseClient';
+import { MOCK_SETTINGS, MOCK_ROLES } from '../lib/mockData';
 
-// Helper to simulate async operations
+// Helper to simulate async operations for user creation/deletion which would typically be edge functions
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 interface AuthContextType {
@@ -14,19 +15,47 @@ interface AuthContextType {
     loading: boolean;
     loadingUsers: boolean;
     login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
-    logout: () => void;
+    logout: () => Promise<void>;
     fetchUsers: () => Promise<void>;
     addUser: (userData: Partial<User>) => Promise<{ success: boolean; user?: User; tempPassword?: string; error?: string }>;
     updateUser: (userData: Partial<User>) => Promise<void>;
     deleteUser: (userId: string) => Promise<void>;
     updateSettings: (newSettings: Settings) => Promise<void>;
     hasPermission: (permission: Permission | Permission[]) => boolean;
-    // FIX: Add missing methods for password reset functionality.
     sendPasswordResetEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
     updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Helper to convert snake_case from DB to camelCase for app
+const toCamelCase = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => toCamelCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce((result, key) => {
+            const newKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
+            result[newKey] = toCamelCase(obj[key]);
+            return result;
+        }, {} as any);
+    }
+    return obj;
+};
+
+// Helper to convert camelCase from app to snake_case for DB
+const toSnakeCase = (obj: any): any => {
+     if (Array.isArray(obj)) {
+        return obj.map(v => toSnakeCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce((result, key) => {
+            const newKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            result[newKey] = toSnakeCase(obj[key]);
+            return result;
+        }, {} as any);
+    }
+    return obj;
+};
+
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -36,45 +65,105 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [loadingUsers, setLoadingUsers] = useState(true);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        // On initial app load, we are not logged in.
-        setLoading(false);
-        fetchUsers();
+    const fetchUserProfile = useCallback(async (userId: string, userEmail: string | undefined) => {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            console.error('Error fetching profile:', error.message);
+            return null;
+        }
+
+        const profileData = toCamelCase(data);
+        const roleSettings = MOCK_ROLES.find(r => r.roleName === profileData.role);
+        const permissions = roleSettings ? Object.keys(roleSettings.permissions).filter(p => roleSettings.permissions[p as Permission]) as Permission[] : [];
+
+        return {
+            ...profileData,
+            email: userEmail || profileData.email,
+            lastLogin: '', // This info is not easily available client-side
+            isOnline: false, // This would require presence tracking
+            permissions,
+        } as User;
     }, []);
 
+    useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+                const profile = await fetchUserProfile(session.user.id, session.user.email);
+                setCurrentUser(profile);
+            } else {
+                setCurrentUser(null);
+            }
+            setLoading(false);
+        });
+
+        return () => {
+            subscription?.unsubscribe();
+        };
+    }, [fetchUserProfile]);
+
     const login = async (email: string, pass: string) => {
-        setLoading(true);
-        await sleep(500); // Simulate network latency
-        
-        // Find user in our mock/runtime user list
-        const user = allUsers.find(u => u.email === email);
-        
-        // For this mock app, we'll use a universal password.
-        if (user && pass === 'password123') {
-            setCurrentUser(user);
-            setLoading(false);
-            return { success: true };
-        } else {
-            setLoading(false);
+        const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        if (error) {
             return { success: false, error: "Email ou mot de passe incorrect." };
         }
+        return { success: true };
     };
 
-    const logout = () => {
+    const logout = async () => {
+        await supabase.auth.signOut();
         setCurrentUser(null);
         navigate('/login');
     };
 
     const fetchUsers = useCallback(async () => {
         setLoadingUsers(true);
-        await sleep(500); // Simulate API call
-        setAllUsers(MOCK_USERS);
+        const { data, error } = await supabase.from('profiles').select('*');
+        if (error) {
+            console.error('Error fetching users:', error.message);
+            setAllUsers([]);
+        } else {
+             const usersWithPermissions = (toCamelCase(data) as any[]).map(profile => {
+                const roleSettings = MOCK_ROLES.find(r => r.roleName === profile.role);
+                const permissions = roleSettings ? Object.keys(roleSettings.permissions).filter(p => roleSettings.permissions[p as Permission]) as Permission[] : [];
+                return { ...profile, permissions } as User;
+            });
+            setAllUsers(usersWithPermissions);
+        }
         setLoadingUsers(false);
     }, []);
 
+    const updateUser = async (userData: Partial<User>) => {
+        const { id, permissions, ...updateData } = userData;
+        const snakeCaseData = toSnakeCase(updateData);
+        
+        // Supabase auth details like email cannot be updated from the `profiles` table.
+        delete snakeCaseData.email; 
+
+        const { error } = await supabase.from('profiles').update(snakeCaseData).eq('id', id);
+        if (error) {
+            console.error("Error updating user:", error);
+        } else {
+            // Re-fetch all users to update the list
+            await fetchUsers();
+            // If the updated user is the current user, refresh their profile
+            if (currentUser?.id === id && currentUser.email) {
+                const updatedProfile = await fetchUserProfile(id, currentUser.email);
+                setCurrentUser(updatedProfile);
+            }
+        }
+    };
+    
+    // NOTE: Creating and deleting users requires Supabase Admin privileges and should be
+    // handled via secure Edge Functions. For this project, we'll simulate this locally.
     const addUser = async (userData: Partial<User>) => {
+        console.warn("addUser is mocked and does not affect the database.");
         await sleep(500);
-        const tempPassword = 'password123'; // Standard password for all users
+        const tempPassword = 'password123';
         
         const newUser: User = {
             id: `user-${Date.now()}`,
@@ -92,29 +181,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: true, user: newUser, tempPassword };
     };
 
-    const updateUser = async (userData: Partial<User>) => {
-        await sleep(300);
-        setAllUsers(prev => prev.map(u => u.id === userData.id ? { ...u, ...userData } : u));
-        if (currentUser?.id === userData.id) {
-            setCurrentUser(prev => prev ? { ...prev, ...userData } : null);
-        }
-    };
-    
     const deleteUser = async (userId: string) => {
+        console.warn("deleteUser is mocked and does not affect the database.");
         await sleep(500);
         setAllUsers(prev => prev.filter(u => u.id !== userId));
     };
 
+
     const updateSettings = async (newSettings: Settings) => {
         setLoading(true);
-        await sleep(500);
+        await sleep(500); // This is still mocked
         setSettings(newSettings);
         setLoading(false);
     };
 
     const hasPermission = useCallback((permission: Permission | Permission[]): boolean => {
         if (!currentUser) return false;
-        if (currentUser.role === UserRole.SuperAdmin) return true; // SuperAdmin has all permissions
+        if (currentUser.role === UserRole.SuperAdmin) return true;
         const userPermissions = new Set(currentUser.permissions);
 
         if (Array.isArray(permission)) {
@@ -123,37 +206,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return userPermissions.has(permission);
     }, [currentUser]);
 
-    // FIX: Implement mock password reset email function.
     const sendPasswordResetEmail = async (email: string): Promise<{ success: boolean; error?: string }> => {
-        await sleep(500); // Simulate network latency
-        // In a real app, this would trigger a backend service to send an email.
-        // For this mock app, we'll just check if the user exists and return success.
-        const userExists = allUsers.some(u => u.email === email);
-        if (userExists) {
-            console.log(`Password reset link sent to ${email} (simulation)`);
-        } else {
-            // For security reasons, we don't reveal if an email exists or not.
-            console.log(`Password reset requested for non-existent email: ${email} (simulation)`);
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) {
+            // For security, don't reveal if the user exists. Log the error for devs.
+            console.error("Password reset error:", error.message);
         }
-        // Always return success to the UI.
         return { success: true };
     };
 
-    // FIX: Implement mock password update function.
     const updatePassword = async (password: string): Promise<{ success: boolean; error?: string }> => {
-        await sleep(500); // Simulate network latency
-        if (!currentUser) {
-            // This case should be handled by route protection, but as a safeguard:
-            const isResetting = window.location.pathname.includes('reset-password');
-            if (!isResetting) {
-                 return { success: false, error: "No user is currently logged in." };
-            }
-        }
-        // In a real app, this would be an API call to update the user's password.
-        // Since we don't handle real passwords, we'll just log it and return success.
-        console.log(`Password for user updated to "${password}" (simulation)`);
-        // This won't affect the mock login which uses a hardcoded password.
-        return { success: true };
+         const { error } = await supabase.auth.updateUser({ password });
+         if (error) {
+             return { success: false, error: "Impossible de mettre à jour le mot de passe." };
+         }
+         return { success: true };
     };
 
     const value = {

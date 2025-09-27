@@ -1,16 +1,37 @@
 // hooks/useData.tsx
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import {
-    Bungalow, Reservation, Client, MaintenanceRequest, Invoice, CommunicationLog, LoyaltyLog, LoyaltyLogType
+    Bungalow, Reservation, Client, MaintenanceRequest, Invoice, CommunicationLog, LoyaltyLog
 } from '../types';
-import {
-    MOCK_BUNGALOWS, MOCK_RESERVATIONS, MOCK_CLIENTS, MOCK_MAINTENANCE_REQUESTS,
-    MOCK_INVOICES, MOCK_COMMUNICATION_LOGS, MOCK_LOYALTY_LOGS
-} from '../lib/mockData';
-import { useToasts } from './useToasts';
-import { useAuth } from './useAuth';
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Generic helper to convert snake_case from DB to camelCase for app
+const toCamelCase = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => toCamelCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce((result, key) => {
+            const newKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
+            result[newKey] = toCamelCase(obj[key]);
+            return result;
+        }, {} as any);
+    }
+    return obj;
+};
+
+// Generic helper to convert camelCase from app to snake_case for DB
+const toSnakeCase = (obj: any): any => {
+     if (Array.isArray(obj)) {
+        return obj.map(v => toSnakeCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce((result, key) => {
+            const newKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            result[newKey] = toSnakeCase(obj[key]);
+            return result;
+        }, {} as any);
+    }
+    return obj;
+};
 
 type LoadingStates = {
     bungalows: boolean;
@@ -80,43 +101,102 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const setLoading = (key: keyof LoadingStates, value: boolean) => {
         setIsLoading(prev => ({...prev, [key]: value}));
-    }
-
-    // Bungalows
-    const fetchBungalows = useCallback(async () => { setLoading('bungalows', true); await sleep(300); setBungalows(MOCK_BUNGALOWS); setLoading('bungalows', false); }, []);
-    const addBungalow = async (bungalow: Partial<Bungalow>) => { await sleep(200); setBungalows(prev => [...prev, { ...bungalow, id: `bungalow-${Date.now()}` } as Bungalow]); };
-    const updateBungalow = async (bungalow: Bungalow) => { await sleep(200); setBungalows(prev => prev.map(b => b.id === bungalow.id ? bungalow : b)); };
-    const deleteBungalow = async (id: string) => { await sleep(200); setBungalows(prev => prev.filter(b => b.id !== id)); };
-
-    // Reservations
-    const fetchReservations = useCallback(async () => { setLoading('reservations', true); await sleep(400); setReservations(MOCK_RESERVATIONS); setLoading('reservations', false); }, []);
-    const addReservation = async (reservation: Partial<Reservation>) => { await sleep(200); setReservations(prev => [...prev, { ...reservation, id: `res-${Date.now()}` } as Reservation]); };
-    const updateReservation = async (reservation: Reservation) => { await sleep(200); setReservations(prev => prev.map(r => r.id === reservation.id ? reservation : r)); };
-
-    // Clients
-    const fetchClients = useCallback(async () => { setLoading('clients', true); await sleep(350); setClients(MOCK_CLIENTS); setLoading('clients', false); }, []);
-    const addClient = async (client: Partial<Client>) => { await sleep(200); setClients(prev => [...prev, { ...client, id: `client-${Date.now()}`, registrationDate: new Date().toISOString() } as Client]); };
-    const updateClient = async (client: Client) => { await sleep(200); setClients(prev => prev.map(c => c.id === client.id ? client : c)); };
-    const deleteClient = async (id: string) => { await sleep(200); setClients(prev => prev.filter(c => c.id !== id)); };
-
-    // Invoices
-    const fetchInvoices = useCallback(async () => { setLoading('invoices', true); await sleep(500); setInvoices(MOCK_INVOICES); setLoading('invoices', false); }, []);
-    const addInvoice = async (invoice: Partial<Invoice>) => { await sleep(200); setInvoices(prev => [...prev, { ...invoice, id: `INV-${new Date().getFullYear()}-${String(prev.length + 1).padStart(3, '0')}` } as Invoice]); };
-    const updateInvoice = async (invoice: Invoice) => { await sleep(200); setInvoices(prev => prev.map(i => i.id === invoice.id ? invoice : i)); };
-
-    // Maintenance
-    const fetchMaintenanceRequests = useCallback(async () => { setLoading('maintenanceRequests', true); await sleep(450); setMaintenanceRequests(MOCK_MAINTENANCE_REQUESTS); setLoading('maintenanceRequests', false); }, []);
-    const addMaintenanceRequest = async (request: Partial<MaintenanceRequest>) => { await sleep(200); setMaintenanceRequests(prev => [...prev, { ...request, id: `maint-${Date.now()}`, createdDate: new Date().toISOString() } as MaintenanceRequest]); };
-    const updateMaintenanceRequest = async (request: MaintenanceRequest) => { await sleep(200); setMaintenanceRequests(prev => prev.map(r => r.id === request.id ? request : r)); };
-    const deleteMaintenanceRequest = async (id: string) => { await sleep(200); setMaintenanceRequests(prev => prev.filter(r => r.id !== id)); };
-
-    // Communication
-    const fetchCommunicationLogs = useCallback(async () => { setLoading('communicationLogs', true); await sleep(200); setCommunicationLogs(MOCK_COMMUNICATION_LOGS); setLoading('communicationLogs', false); }, []);
-    const addCommunicationLog = async (log: Partial<CommunicationLog>) => { await sleep(200); setCommunicationLogs(prev => [...prev, { ...log, id: `comm-${Date.now()}` } as CommunicationLog]); };
+    };
     
-    // Loyalty
-    const fetchLoyaltyLogs = useCallback(async () => { setLoading('loyaltyLogs', true); await sleep(250); setLoyaltyLogs(MOCK_LOYALTY_LOGS); setLoading('loyaltyLogs', false); }, []);
-    const addLoyaltyLog = async (log: Partial<LoyaltyLog>) => { await sleep(100); setLoyaltyLogs(prev => [...prev, { ...log, id: `loylog-${Date.now()}` } as LoyaltyLog]); };
+    const handleError = (error: any, context: string) => {
+        console.error(`Error in ${context}:`, error.message);
+        // Here you could use a toast notification to inform the user
+    };
+
+    // Generic fetcher
+    const createFetcher = (tableName: string, setter: React.Dispatch<any>, stateKey: keyof LoadingStates) => 
+        useCallback(async () => {
+            setLoading(stateKey, true);
+            const { data, error } = await supabase.from(tableName).select('*');
+            if (error) handleError(error, `fetching ${tableName}`);
+            else setter(toCamelCase(data));
+            setLoading(stateKey, false);
+        }, [tableName, setter, stateKey]);
+
+    const fetchBungalows = createFetcher('bungalows', setBungalows, 'bungalows');
+    const fetchReservations = createFetcher('reservations', setReservations, 'reservations');
+    const fetchClients = createFetcher('clients', setClients, 'clients');
+    const fetchMaintenanceRequests = createFetcher('maintenance_requests', setMaintenanceRequests, 'maintenanceRequests');
+    const fetchInvoices = createFetcher('invoices', setInvoices, 'invoices');
+    const fetchCommunicationLogs = createFetcher('communication_logs', setCommunicationLogs, 'communicationLogs');
+    const fetchLoyaltyLogs = createFetcher('loyalty_logs', setLoyaltyLogs, 'loyaltyLogs');
+    
+    const addBungalow = async (bungalow: Partial<Bungalow>) => {
+        const { error } = await supabase.from('bungalows').insert([toSnakeCase(bungalow)]);
+        if (error) handleError(error, 'adding bungalow'); else await fetchBungalows();
+    };
+    const updateBungalow = async (bungalow: Bungalow) => {
+        const { id, ...data } = bungalow;
+        const { error } = await supabase.from('bungalows').update(toSnakeCase(data)).eq('id', id);
+        if (error) handleError(error, 'updating bungalow'); else await fetchBungalows();
+    };
+    const deleteBungalow = async (id: string) => {
+        const { error } = await supabase.from('bungalows').delete().eq('id', id);
+        if (error) handleError(error, 'deleting bungalow'); else await fetchBungalows();
+    };
+    
+    const addReservation = async (reservation: Partial<Reservation>) => {
+        const { error } = await supabase.from('reservations').insert([toSnakeCase(reservation)]);
+        if (error) handleError(error, 'adding reservation'); else await fetchReservations();
+    };
+    const updateReservation = async (reservation: Reservation) => {
+        const { id, ...data } = reservation;
+        const { error } = await supabase.from('reservations').update(toSnakeCase(data)).eq('id', id);
+        if (error) handleError(error, 'updating reservation'); else await fetchReservations();
+    };
+
+    const addClient = async (client: Partial<Client>) => {
+        const { error } = await supabase.from('clients').insert([toSnakeCase(client)]);
+        if (error) handleError(error, 'adding client'); else await fetchClients();
+    };
+    const updateClient = async (client: Client) => {
+        const { id, ...data } = client;
+        const { error } = await supabase.from('clients').update(toSnakeCase(data)).eq('id', id);
+        if (error) handleError(error, 'updating client'); else await fetchClients();
+    };
+    const deleteClient = async (id: string) => {
+        const { error } = await supabase.from('clients').delete().eq('id', id);
+        if (error) handleError(error, 'deleting client'); else await fetchClients();
+    };
+
+    const addInvoice = async (invoice: Partial<Invoice>) => {
+        const { error } = await supabase.from('invoices').insert([toSnakeCase(invoice)]);
+        if (error) handleError(error, 'adding invoice'); else await fetchInvoices();
+    };
+    const updateInvoice = async (invoice: Invoice) => {
+        const { id, ...data } = invoice;
+        const { error } = await supabase.from('invoices').update(toSnakeCase(data)).eq('id', id);
+        if (error) handleError(error, 'updating invoice'); else await fetchInvoices();
+    };
+    
+    const addMaintenanceRequest = async (request: Partial<MaintenanceRequest>) => {
+        const { error } = await supabase.from('maintenance_requests').insert([toSnakeCase(request)]);
+        if (error) handleError(error, 'adding maintenance request'); else await fetchMaintenanceRequests();
+    };
+    const updateMaintenanceRequest = async (request: MaintenanceRequest) => {
+        const { id, ...data } = request;
+        const { error } = await supabase.from('maintenance_requests').update(toSnakeCase(data)).eq('id', id);
+        if (error) handleError(error, 'updating maintenance request'); else await fetchMaintenanceRequests();
+    };
+    const deleteMaintenanceRequest = async (id: string) => {
+        const { error } = await supabase.from('maintenance_requests').delete().eq('id', id);
+        if (error) handleError(error, 'deleting maintenance request'); else await fetchMaintenanceRequests();
+    };
+
+    const addCommunicationLog = async (log: Partial<CommunicationLog>) => {
+        const { error } = await supabase.from('communication_logs').insert([toSnakeCase(log)]);
+        if (error) handleError(error, 'adding communication log'); else await fetchCommunicationLogs();
+    };
+    
+    const addLoyaltyLog = async (log: Partial<LoyaltyLog>) => {
+        const { error } = await supabase.from('loyalty_logs').insert([toSnakeCase(log)]);
+        if (error) handleError(error, 'adding loyalty log'); else await fetchLoyaltyLogs();
+    };
 
 
     const value = {
