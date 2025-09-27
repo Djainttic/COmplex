@@ -194,7 +194,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (error) { handleError(error, `adding ${tableName}`); return false; }
             await fetcher();
             return true;
-        }, [tableName]);
+        }, [tableName, fetcher]);
 
     const createGenericUpdater = <T extends { id: string }>(tableName: string, fetcher: () => Promise<void>) => 
         useCallback(async (item: T): Promise<boolean> => {
@@ -203,7 +203,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (error) { handleError(error, `updating ${tableName}`); return false; }
             await fetcher();
             return true;
-        }, [tableName]);
+        }, [tableName, fetcher]);
 
     const createGenericDeleter = (tableName: string, fetcher: () => Promise<void>) => 
         useCallback(async (id: string): Promise<boolean> => {
@@ -211,7 +211,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (error) { handleError(error, `deleting ${tableName}`); return false; }
             await fetcher();
             return true;
-        }, [tableName]);
+        }, [tableName, fetcher]);
 
     const addBungalow = createGenericAdder<Bungalow>('bungalows', fetchBungalows);
     const updateBungalow = createGenericUpdater<Bungalow>('bungalows', fetchBungalows);
