@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BungalowStatus, MaintenanceStatus, Reservation, Client, MaintenanceRequest } from '../../types';
+import { Reservation, Client, MaintenanceRequest } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
 import StatCard from '../ui/StatCard';
@@ -23,47 +23,29 @@ const PageLoader: React.FC = () => (
 const DashboardPage: React.FC = () => {
     const { currentUser, allUsers, fetchUsers, loadingUsers } = useAuth();
     const { 
-        bungalows, reservations, clients, maintenanceRequests,
-        fetchBungalows, fetchReservations, fetchClients, fetchMaintenanceRequests,
+        bungalows, clients, // Keep full data for modals
+        fetchBungalows, fetchClients, // Keep fetchers for modals
+        dashboardStats, dashboardBungalows, dashboardReservations, dashboardMaintenanceRequests,
+        fetchDashboardData,
         addReservation, updateReservation, addClient, updateClient,
         addMaintenanceRequest, updateMaintenanceRequest, isLoading: isDataLoading
     } = useData();
 
     useEffect(() => {
+        // Fetch optimized data for dashboard display
+        fetchDashboardData();
+        
+        // Fetch full data needed for modals in the background
         fetchBungalows();
-        fetchReservations();
         fetchClients();
-        fetchMaintenanceRequests();
         fetchUsers();
-    }, [fetchBungalows, fetchReservations, fetchClients, fetchMaintenanceRequests, fetchUsers]);
+    }, [fetchDashboardData, fetchBungalows, fetchClients, fetchUsers]);
 
     const [isReservationModalOpen, setReservationModalOpen] = useState(false);
     const [isClientModalOpen, setClientModalOpen] = useState(false);
     const [isMaintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
 
     const assignableUsers = getVisibleUsers(currentUser, allUsers);
-
-    const isToday = (someDate: Date) => {
-        const today = new Date();
-        return someDate.getDate() === today.getDate() &&
-            someDate.getMonth() === today.getMonth() &&
-            someDate.getFullYear() === today.getFullYear();
-    };
-
-    const dashboardData = useMemo(() => {
-        const checkInsToday = reservations.filter(r => isToday(new Date(r.startDate))).length;
-        const checkOutsToday = reservations.filter(r => isToday(new Date(r.endDate))).length;
-        
-        const occupiedCount = bungalows.filter(b => b.status === BungalowStatus.Occupied).length;
-        const totalBungalows = bungalows.length;
-        const occupancyRate = totalBungalows > 0 ? (occupiedCount / totalBungalows) * 100 : 0;
-
-        const pendingMaintenance = maintenanceRequests.filter(
-            r => r.status === MaintenanceStatus.Pending || r.status === MaintenanceStatus.InProgress
-        ).length;
-        
-        return { checkInsToday, checkOutsToday, occupancyRate, pendingMaintenance };
-    }, [reservations, bungalows, maintenanceRequests]);
 
     const handleSaveReservation = async (res: Reservation) => {
         if (res.id && res.id !== '') {
@@ -73,6 +55,7 @@ const DashboardPage: React.FC = () => {
             await addReservation(newRes);
         }
         setReservationModalOpen(false);
+        fetchDashboardData(); // Refresh dashboard data
     };
 
      const handleSaveClient = async (cli: Client) => {
@@ -93,9 +76,10 @@ const DashboardPage: React.FC = () => {
             await addMaintenanceRequest(newReq);
         }
         setMaintenanceModalOpen(false);
+        fetchDashboardData(); // Refresh dashboard data
     };
 
-    const isLoading = isDataLoading.bungalows || isDataLoading.reservations || isDataLoading.clients || isDataLoading.maintenanceRequests || loadingUsers;
+    const isLoading = isDataLoading.dashboard || loadingUsers;
 
     if (isLoading) {
         return <PageLoader />;
@@ -106,37 +90,37 @@ const DashboardPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                 <StatCard 
                     title="Arrivées aujourd'hui"
-                    value={dashboardData.checkInsToday.toString()}
+                    value={dashboardStats.checkInsToday.toString()}
                     icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>}
                 />
                  <StatCard 
                     title="Départs aujourd'hui"
-                    value={dashboardData.checkOutsToday.toString()}
+                    value={dashboardStats.checkOutsToday.toString()}
                     icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>}
                 />
                  <StatCard 
                     title="Taux d'occupation"
-                    value={`${dashboardData.occupancyRate.toFixed(1)}%`}
+                    value={`${dashboardStats.occupancyRate.toFixed(1)}%`}
                     icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
                 />
                  <StatCard 
                     title="Maintenance en cours"
-                    value={dashboardData.pendingMaintenance.toString()}
+                    value={dashboardStats.pendingMaintenance.toString()}
                     icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" /></svg>}
                 />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                    <BungalowStatusChart bungalows={bungalows} />
+                    <BungalowStatusChart bungalows={dashboardBungalows} />
                 </div>
                 <div>
-                    <UpcomingActivities reservations={reservations} clients={clients} bungalows={bungalows} />
+                    <UpcomingActivities reservations={dashboardReservations} clients={clients} bungalows={bungalows} />
                 </div>
                 <div className="lg:col-span-2">
                     <RecentActivityFeed 
-                        reservations={reservations}
-                        maintenanceRequests={maintenanceRequests}
+                        reservations={dashboardReservations}
+                        maintenanceRequests={dashboardMaintenanceRequests}
                         clients={clients}
                         bungalows={bungalows}
                     />

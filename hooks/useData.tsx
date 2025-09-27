@@ -41,7 +41,15 @@ type LoadingStates = {
     invoices: boolean;
     communicationLogs: boolean;
     loyaltyLogs: boolean;
+    dashboard: boolean;
 };
+
+export interface DashboardStats {
+    checkInsToday: number;
+    checkOutsToday: number;
+    occupancyRate: number;
+    pendingMaintenance: number;
+}
 
 interface DataContextType {
     bungalows: Bungalow[];
@@ -53,6 +61,14 @@ interface DataContextType {
     loyaltyLogs: LoyaltyLog[];
     isLoading: LoadingStates;
     
+    // Dashboard specific state
+    dashboardStats: DashboardStats;
+    dashboardBungalows: Pick<Bungalow, 'id' | 'status'>[];
+    dashboardReservations: Reservation[];
+    dashboardMaintenanceRequests: MaintenanceRequest[];
+
+    fetchDashboardData: () => Promise<void>;
+
     fetchBungalows: () => Promise<void>;
     addBungalow: (bungalow: Partial<Bungalow>) => Promise<void>;
     updateBungalow: (bungalow: Bungalow) => Promise<void>;
@@ -93,10 +109,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [communicationLogs, setCommunicationLogs] = useState<CommunicationLog[]>([]);
     const [loyaltyLogs, setLoyaltyLogs] = useState<LoyaltyLog[]>([]);
+    
+    // Dashboard specific state
+    const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ checkInsToday: 0, checkOutsToday: 0, occupancyRate: 0, pendingMaintenance: 0 });
+    const [dashboardBungalows, setDashboardBungalows] = useState<Pick<Bungalow, 'id' | 'status'>[]>([]);
+    const [dashboardReservations, setDashboardReservations] = useState<Reservation[]>([]);
+    const [dashboardMaintenanceRequests, setDashboardMaintenanceRequests] = useState<MaintenanceRequest[]>([]);
+
 
     const [isLoading, setIsLoading] = useState<LoadingStates>({
         bungalows: true, reservations: true, clients: true, maintenanceRequests: true,
-        invoices: true, communicationLogs: true, loyaltyLogs: true,
+        invoices: true, communicationLogs: true, loyaltyLogs: true, dashboard: true,
     });
     
     const setLoading = (key: keyof LoadingStates, value: boolean) => {
@@ -108,15 +131,52 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Here you could use a toast notification to inform the user
     };
 
+    const fetchDashboardData = useCallback(async () => {
+        setLoading('dashboard', true);
+        const today = new Date().toISOString().split('T')[0];
+        const tomorrow = new Date(Date.now() + 864e5).toISOString().split('T')[0];
+
+        try {
+            // 1. Fetch Stats
+            const { count: checkInsToday, error: checkInError } = await supabase.from('reservations').select('id', { count: 'exact', head: true }).eq('start_date', today);
+            const { count: checkOutsToday, error: checkOutError } = await supabase.from('reservations').select('id', { count: 'exact', head: true }).eq('end_date', today);
+            const { count: totalBungalows, error: totalBError } = await supabase.from('bungalows').select('id', { count: 'exact', head: true });
+            const { count: occupiedCount, error: occupiedError } = await supabase.from('bungalows').select('id', { count: 'exact', head: true }).eq('status', 'Occupé');
+            const { count: pendingMaintenance, error: maintenanceError } = await supabase.from('maintenance_requests').select('id', { count: 'exact', head: true }).in('status', ['En attente', 'En cours']);
+            
+            if (checkInError || checkOutError || totalBError || occupiedError || maintenanceError) throw new Error('Failed to fetch stats');
+
+            const occupancyRate = totalBungalows > 0 ? (occupiedCount / totalBungalows) * 100 : 0;
+            setDashboardStats({ checkInsToday, checkOutsToday, occupancyRate, pendingMaintenance });
+            
+            // 2. Fetch data for charts and feeds
+            const { data: bungalowStatuses, error: bungalowStatusError } = await supabase.from('bungalows').select('id, status');
+            const { data: upcomingReservations, error: upcomingResError } = await supabase.from('reservations').select('id, start_date, end_date, client_id, bungalow_id').or(`start_date.eq.${today},start_date.eq.${tomorrow},end_date.eq.${today},end_date.eq.${tomorrow}`);
+            const { data: recentReservations, error: recentResError } = await supabase.from('reservations').select('id, start_date, client_id, bungalow_id').order('created_at', { ascending: false }).limit(5);
+            const { data: recentMaintenance, error: recentMaintError } = await supabase.from('maintenance_requests').select('id, created_date, bungalow_id, description').order('created_date', { ascending: false }).limit(5);
+
+            if (bungalowStatusError || upcomingResError || recentResError || recentMaintError) throw new Error('Failed to fetch dashboard component data');
+
+            setDashboardBungalows(toCamelCase(bungalowStatuses));
+            setDashboardReservations(toCamelCase([...upcomingReservations, ...recentReservations]));
+            setDashboardMaintenanceRequests(toCamelCase(recentMaintenance));
+
+        } catch (e: any) {
+            handleError(e, 'fetching dashboard data');
+        } finally {
+            setLoading('dashboard', false);
+        }
+    }, []);
+
     // Generic fetcher
-    const createFetcher = (tableName: string, setter: React.Dispatch<any>, stateKey: keyof LoadingStates) => 
+    const createFetcher = (tableName: string, setter: React.Dispatch<any>, stateKey: keyof LoadingStates, columns = '*') => 
         useCallback(async () => {
             setLoading(stateKey, true);
-            const { data, error } = await supabase.from(tableName).select('*');
+            const { data, error } = await supabase.from(tableName).select(columns);
             if (error) handleError(error, `fetching ${tableName}`);
             else setter(toCamelCase(data));
             setLoading(stateKey, false);
-        }, [tableName, setter, stateKey]);
+        }, [tableName, setter, stateKey, columns]);
 
     const fetchBungalows = createFetcher('bungalows', setBungalows, 'bungalows');
     const fetchReservations = createFetcher('reservations', setReservations, 'reservations');
@@ -201,6 +261,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const value = {
         bungalows, reservations, clients, maintenanceRequests, invoices, communicationLogs, loyaltyLogs, isLoading,
+        dashboardStats, dashboardBungalows, dashboardReservations, dashboardMaintenanceRequests,
+        fetchDashboardData,
         fetchBungalows, addBungalow, updateBungalow, deleteBungalow,
         fetchReservations, addReservation, updateReservation,
         fetchClients, addClient, updateClient, deleteClient,

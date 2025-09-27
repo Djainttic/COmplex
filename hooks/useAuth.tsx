@@ -122,7 +122,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const fetchUsers = useCallback(async () => {
         setLoadingUsers(true);
-        const { data, error } = await supabase.from('profiles').select('*');
+        const { data, error } = await supabase.from('profiles').select('id, name, email, phone, role, status, avatar_url');
         if (error) {
             console.error('Error fetching users:', error.message);
             setAllUsers([]);
@@ -130,7 +130,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
              const usersWithPermissions = (toCamelCase(data) as any[]).map(profile => {
                 const roleSettings = MOCK_ROLES.find(r => r.roleName === profile.role);
                 const permissions = roleSettings ? Object.keys(roleSettings.permissions).filter(p => roleSettings.permissions[p as Permission]) as Permission[] : [];
-                return { ...profile, permissions } as User;
+                return { 
+                    ...profile, 
+                    permissions,
+                    lastLogin: '', // Mocked data
+                    isOnline: Math.random() > 0.5, // Mocked data
+                } as User;
             });
             setAllUsers(usersWithPermissions);
         }
