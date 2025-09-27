@@ -150,7 +150,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setter(toCamelCase(data));
             }
             setLoading(stateKey, false);
-        }, [tableName, setter, stateKey, columns]);
+        }, [tableName, stateKey, columns]); // setter is stable, not needed in deps
 
     const fetchBungalows = createFetcher('bungalows', setBungalows, 'bungalows');
     const fetchReservations = createFetcher('reservations', setReservations, 'reservations');
